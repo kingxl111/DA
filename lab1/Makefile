@@ -8,7 +8,7 @@ all: sort.o  main.cpp
 sort.o: sort.cpp sort.hpp
 	$(CC) $(FLAGS) -c sort.cpp
 
-# benchmark: sort.o  benchmark.cpp
-# 	$(CC) $(FLAGS) sort.o  benchmark.cpp -o benchmark
+benchmark: sort.o  benchmark.cpp
+	$(CC) $(FLAGS) sort.o  benchmark.cpp -o benchmark
 clean:
 	rm *.o $(OUTPUT)
