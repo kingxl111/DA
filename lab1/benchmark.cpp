@@ -13,9 +13,7 @@ const std::string DURATION_PREFIX = "ms";
 
 bool cmp(TElem el1, TElem el2)
 {
-    std::string key1 = el1.key;
-    std::string key2 = el2.key;
-    return key1 < key2;
+    return el1.key < el2.key;
 }
 
 int main()
