@@ -42,13 +42,13 @@ def main():
         test_name = "{}/{:02d}".format(test_dir, test_count)
         with open(f'{test_name}.t', 'w') as ftest:
             for key, value in test:
-                ftest.write(f'{key} {value}\n')
+                ftest.write(f'{key}\t{value}\n')
 
         answer = sorted(test, key=lambda x: x[0])
 
         with open(f'{test_name}.a', 'w') as ftest:
             for key, value in answer:
-                ftest.write(f'{key} {value}\n')
+                ftest.write(f'{key}\t{value}\n')
 
 if __name__ == "__main__":
     main()

@@ -9,7 +9,6 @@ int main()
 
     std::string key;
     std::string value;
-    TElem elem;
 
     while(std::cin >> key >> value) 
     {

@@ -3,3 +3,6 @@ tmp
 main
 tests
 vector.hpp
+benchmark
+a.out
+toSend.tar

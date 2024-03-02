@@ -1,5 +1,21 @@
 #include <iostream>
-#include "sort.hpp"
+
+const int KEY_LENGTH = 32;
+const int VALUE_LENGTH = 64;
+const int MAX_ARRAY_SIZE = 1000000;
+
+
+class TElem 
+{
+private:
+    int valueSize;
+public:
+    char key[KEY_LENGTH];
+    char value[VALUE_LENGTH];
+    void PrintElem();
+    void Set(std::string &key, std::string &value);
+};
+
 
 void TElem::PrintElem() 
 {
@@ -15,9 +31,9 @@ void TElem::PrintElem()
     std::cout << '\n';
 }
 
-void TElem::Set(std::string k, std::string v) 
+void TElem::Set(std::string &k, std::string &v) 
 {
-    for (size_t i = 0; i < k.size(); ++i)
+    for (size_t i = 0; i < KEY_LENGTH; ++i)
     {
         this->key[i] = k[i];
     }
@@ -25,18 +41,8 @@ void TElem::Set(std::string k, std::string v)
     {
         this->value[i] = v[i];
     }
-    if (v.size() < VALUE_LENGTH) 
-    {
-        for (int i = v.size(); i < VALUE_LENGTH; ++i)
-        {
-            this->value[i] = '\0';
-        }
-    }
     this->valueSize = v.size();
 }
-
-namespace NSort
-{
 
 int HexadecimalToInt(char s)
 {
@@ -65,7 +71,8 @@ void RadixSort(TElem *ar, int arSize)
     {
         // CountSort
         int count[16];
-        for(int k = 0; k < 16; ++k) {
+        for(int k = 0; k < 16; ++k) 
+        {
             count[k] = 0;
         }
 
@@ -99,5 +106,34 @@ void RadixSort(TElem *ar, int arSize)
 
 }
 
+int main() 
+{
 
-} // namespace sort
+    std::cin.tie(0);
+    std::ios::sync_with_stdio(false);
+    
+    TElem *ar = new TElem[MAX_ARRAY_SIZE];
+
+    int arSize = 0;
+
+    std::string key;
+    std::string value;
+
+    while(std::cin >> key >> value) 
+    {
+        ar[arSize].Set(key, value);
+        ++arSize;
+    }
+
+    
+    RadixSort(ar, arSize);
+
+    for (int i = 0; i < arSize; ++i)
+    {
+        ar[i].PrintElem();
+    }
+
+    delete[] ar;
+
+    return 0;
+}
