@@ -1,113 +1,152 @@
 \section{Описание}
-Требуется написать реализацию алгоритма сортировки подсчётом. Турум-пум-пум...
+Требуется написать реализацию алгоритма поразрядной сортировки. 
 
-Как сказано в \cite{Kormen}: \enquote{основная идея сортировки подсчетом заключается в том, чтобы для каждого входного 
-элемента $x$ определить количество элементов, которые меньше $x$}.
-
-Или можно так:\\
-Основная идея сортировки подсчетом заключается в том, чтобы для каждого входного 
-элемента $x$ определить количество элементов, которые меньше $x$ \cite{Kormen}.
+Основная идея поразрядной сортировки заключается в том, чтобы на каждом шаге упорядочивать ключи по текущему разряду. Будем осуществлять проход по разрядам справа налево. Сами разряды будут упорядочены с помощью сортировки подсчетом, так как максимальный размер использующегося в данной сортировке вспомогательного массива будет не больше, чем мощность алфавита, из знаков которого составлены ключи. 
+% \cite{Kormen}.
 
 \pagebreak
 
 \section{Исходный код}
-Здесь должно быть подробное описание программы и основные этапы написания кода.
 
-На каждой непустой строке входного файла располагается пара \enquote{ключ-значение}, поэтому создадим новую 
-структуру $KV$, в которой будем хранить ключ и значение. И так далее.
+На каждой непустой строке входного файла располагается пара \enquote{ключ-значение}, поэтому создадим новый 
+класс $TElem$, в котором будем хранить ключ и значение.
+Внутри они будут храниться в статическом массиве длиной 32 и 64 знака соответственно. Вынесем эти числа в глобальные константы. Также, в силу реализации программы на динамическом массиве, ограничим его максимальный размер. У класса TElem есть два метода - напечатать элемент и изменить его поля. 
+Далее пропишем функцию перевода шестнадцатиричного числа в его десятичный аналог. Это потребуется впоследствии для того, чтобы реализовать сортировку подсчетом. 
+Функция, осуществляющая поразрядную сортировку, принимает на вход указатель на сортируемый массив и его размер.
+Для каждого из 32 разрядов ключа запускаем сортировку подсчетом, результат которой помещаем во временный массив. Далее следует важная деталь: чтобы нам каждый раз не перемещать arSize элементов из временного массива в старый, что стоит O(arSize), будем просто обменивать указатели через еще одну временную переменную, которая весит всего лишь 4 или 8 байт в зависимости от архитектуры. Это значительно ускоряет работу программы.  
+В точке входа int main() считываем пары строк, пока это возможно. На каждом шаге считанные строки присваиваем текущему элементу при помощи метода void Set(std::string, std::string). Запускаем сортировку, после чего выводим элементы с помощью метода void PrintElem().
+\pagebreak
 
-\begin{lstlisting}[language=C]
-#include "stdio.h"
-#include "stdlib.h"
+\begin{lstlisting}[language=C++]
+#include <iostream>
 
-struct KV{
-	int key;
-	char value;
-} KV;
+const int KEY_LENGTH = 32;
+const int VALUE_LENGTH = 64;
+const int MAX_ARRAY_SIZE = 1000000;
 
-void sort(struct KV * B, struct KV * Res, int max, int size){
-	int C[max+1];
-	for(int i = 0; i <= max; i++)
-		C[i] = 0;
-	for(int i = 0; i < size; i++){
-		int idx = B[i].key;
-		C[idx]++;
-	}
-	for(int i = 1; i <= max; i++)
-		C[i] = C[i] + C[i-1];
+class TElem  {
+private:
+    int valueSize;
+public:
+    char key[KEY_LENGTH];
+    char value[VALUE_LENGTH];
+    void PrintElem();
+    void Set(std::string &key, std::string &value);
+};
 
-	for(int i = size-1; i >= 0; i--){
-		int idx = B[i].key;
-		int pos = C[idx];
-		Res[pos-1] = B[i];
-		C[idx]--;
-	}
+void TElem::PrintElem()  {
+    for (int i = 0; i < KEY_LENGTH; ++i) {
+        std::cout << this->key[i];
+    } 
+    std::cout << '\t';
+    for (int i = 0; i < this->valueSize; ++i) {
+        std::cout << this->value[i];
+    }
+    std::cout << '\n';
 }
 
-int main()
-{
-	int key;
-	char value;
-	struct KV * A = NULL;
-	int size = 0;
-	int max = 0;
-
-	while (scanf("%d\t%c",&key, &value) != EOF)
-	{
-		size++;
-		A = (struct KV *)realloc(A, size*sizeof(struct KV));
-		A[size-1].key = key;
-		A[size-1].value = value;
-		if(key > max)
-			max = key;
-	}
-	
-	struct KV Res[size];
-	sort(A, Res, max, size);
-	for(int i = 0; i < size; i++)
-		printf("%d\t%c\n", Res[i].key, Res[i].value);
-	    
-    free(A);
-
+void TElem::Set(std::string &k, std::string &v)  {
+    for (size_t i = 0; i < KEY_LENGTH; ++i) {
+        this->key[i] = k[i];
+    }
+    for (size_t i = 0; i < v.size(); ++i) {
+        this->value[i] = v[i];
+    }
+    this->valueSize = v.size();
 }
-	
+
+int HexadecimalToInt(char s) {
+    int ans;
+    if((s >= '0') && (s <= '9')) {
+        ans = s - '0';
+    }
+    else if((s >= 'a') && (s <= 'f'))  {
+        ans = s - 'a' + 10;
+    }
+    else if((s >= 'A') && (s <= 'F'))  {
+        ans = s - 'A' + 10;
+    }
+    return ans;
+}
+
+void RadixSort(TElem *ar, int arSize)  {
+    TElem *newAr = new TElem[arSize];
+    for(int j = KEY_LENGTH - 1; j >= 0; --j) {
+        // CountSort
+        int count[16];
+        for(int k = 0; k < 16; ++k)  {
+            count[k] = 0;
+        }
+        for(int i = 0; i < arSize; ++i)  {
+            int idx = HexadecimalToInt(ar[i].key[j]);
+            ++count[idx];
+        }
+        int prev = 0;
+        for(int k = 0; k < 16; ++k)  {
+            count[k] += prev;
+            prev = count[k];
+        }
+        for(int i = arSize - 1; i >= 0; --i)  {
+            int idxInCount = HexadecimalToInt(ar[i].key[j]);
+            int idxInResult = count[idxInCount] - 1;
+            newAr[idxInResult] = ar[i];
+            --count[idxInCount];
+        }
+        TElem *tmp = ar;
+        ar = newAr;
+        newAr = tmp;
+    }
+    
+    delete[] newAr;
+}
+
+int main()  {
+    TElem *ar = new TElem[MAX_ARRAY_SIZE];
+    int arSize = 0;
+    std::string key;
+    std::string value;
+    while(std::cin >> key >> value)  {
+        ar[arSize].Set(key, value);
+        ++arSize;
+    }
+    RadixSort(ar, arSize);
+    for (int i = 0; i < arSize; ++i) {
+        ar[i].PrintElem();
+    }
+    delete[] ar;
+    return 0;
+}	
 \end{lstlisting}
 
-В случае, если код не помещается на одну-две страницы $A4$, тогда следует сделать табличку следующего вида:
-\begin{longtable}{|p{7.5cm}|p{7.5cm}|}
-\hline
-\rowcolor{lightgray}
-\multicolumn{2}{|c|} {main.c}\\
-\hline
-void sort(struct KV \& B, struct KV \& Res, int max, int size)&Функция сортировки подсчётом\\
-\hline
-\rowcolor{lightgray}
-\multicolumn{2}{|c|} {file1.c}\\
-\hline
-void function\_name()&Функция, \enquote{которая почти всегда работает, но неясно, что она делает}.\\
-\hline
-\end{longtable}
-В этом случае структуры или классы должны быть полностью приведены в листинге (без реализации методов).
-\begin{lstlisting}[language=C]
-struct KV{
-	int key;
-	char value;
-} KV;
-\end{lstlisting}
+
 \pagebreak
 
 \section{Консоль}
-\begin{alltt}
-a.kukhticev$ gcc -pedantic -Wall -std=c99 -Werror -Wno-sign-compare -lm da10.c -o da10 --some_long_argument=true
-a.kukhticev$ cat test1 
-87	a
-13	b
-89	c
-13	d
-a.kukhticev$ ./da10 < test1 
-13	b
-13	d
-87	a
-89	c
-\end{alltt}
+\begin{lstlisting}
+$ cat tests/1.t
+8cd4ecede13bee9597eeda9f7fb6f235	VZwCTtMq
+1372eee6db6a75bc27eb22293318f791	LYHmwpjf
+62d7aad87ca23c92b8dcedbff7e3e33b	DYWySEAN
+962545cb1e5d6ac498715dd2f2418277	MtQCxQek
+76e7d2c18ef6bfeaae154b986e716aa8	UcmusLio
+7aa6ebcb3e67453dbdf51614d461329b	qoPiFQYV
+8f55ba73232d69d1ffd858a7a154898f	VBiOHcCs
+463cd899f86cb998e2d38c6c57ba18c9	eBjpTzGX
+a87ff2cc6a3d97bffddb5bd9f1bd771b	CFUqydQG
+cd28f4c7b125da45b81675ba9db62f23	pqKlDnxg
+$
+$
+$ g++ -std=c++20 -pedantic -Wall -Wextra -Wno-unused-variable radix_sort.cpp -o lab1  &&  ./lab1 < tests/1.t 
+1372eee6db6a75bc27eb22293318f791	LYHmwpjf
+463cd899f86cb998e2d38c6c57ba18c9	eBjpTzGX
+62d7aad87ca23c92b8dcedbff7e3e33b	DYWySEAN
+76e7d2c18ef6bfeaae154b986e716aa8	UcmusLio
+7aa6ebcb3e67453dbdf51614d461329b	qoPiFQYV
+8cd4ecede13bee9597eeda9f7fb6f235	VZwCTtMq
+8f55ba73232d69d1ffd858a7a154898f	VBiOHcCs
+962545cb1e5d6ac498715dd2f2418277	MtQCxQek
+a87ff2cc6a3d97bffddb5bd9f1bd771b	CFUqydQG
+cd28f4c7b125da45b81675ba9db62f23	pqKlDnxg
+\end{lstlisting}
+
 \pagebreak

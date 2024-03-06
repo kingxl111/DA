@@ -1,24 +1,79 @@
 \section{Тест производительности}
-{\itshape Тут Вы описываете собственно тест производительности, сравнение Вашей реализации с уже существующими и т.д.}
+{\itshape}
 
+Тест производительности представляет из себя следующее: измеряем время выполнения std::stable\_sort() и radix\_sort() - реализованной поразрядной сортировки - на одном и том же массиве данных. 
+Далее сравниваем времена.\newline
+Оценим сложность реализованной поразрядной сортировки. Пусть N - количество элементов в исходном массиве, p - основание системы счисления, в которой представлены ключи(в нашем случае 16-ричные числа), k - максимальная длина ключа(в нашем случае все ключи имеют фиксированную длину - 32 знака).\newline 
+Главный цикл перебирает все разряды ключей, поэтому его сложность - O(k). Для каждого разряда мы запускаем сортировку подсчетом, в которой дважды осуществляется проход по N элементам массива, а также по p элементам вспомогательного массива.
+Итоговая сложность составляет O(k(2N+p)). При N $>>$ p и N $>>$ k сложность превращается в O(N), то есть в линейную. Однако на малых N константа довольно большая.
 
-Тест производительности представляет из себя следующее: поиск образцов с помощью суффиксного массива сравнивается с поиском алгоритма КМП, но время на построение суффиксного массива не учитывается. Текст состоит из 1 миллиона букв: а образцов около 200 штук, длина которых может быть от 2 до 100 букв.
+\begin{lstlisting}
+#include <iostream>
+#include <chrono>
+#include <algorithm>
+#include "sort.hpp"
 
-\begin{alltt}
-Andys-MacBook-Pro:kmp Andy$ g++ main.cpp
-Andys-MacBook-Pro:kmp Andy$ ./a.out <../in.txt >out2.txt
-Andys-MacBook-Pro:kmp Andy$ cat out2.txt | grep "time"
-KMP search time: 1.639993 sec
-Andys-MacBook-Pro:sa Andy$ make
-g++ -pedantic -Wall -Werror -Wno-sign-compare -Wno-long-long -lm -O2 -o lab5
-main.cpp suffix_tree.cpp suffix_array.cpp
-Andys-MacBook-Pro:sa Andy$ ./lab5 <../in.txt >out1.txt
-Andys-MacBook-Pro:sa Andy$ cat out1.txt | grep "time"
-Suffix array build time: 2.179744 sec
-Suffix array search time: 0.003511 sec
-\end{alltt}
+using duration_t = std::chrono::microseconds;
+const std::string DURATION_PREFIX = "us";
 
-Как видно, что суффиксный массив выиграл у КМП, так как и т.д.
+bool cmp(TElem el1, TElem el2) {
+    return el1.key < el2.key;
+}
+
+int main() {
+    TElem *input = new TElem[MAX_ARRAY_SIZE];
+    TElem *input_stl = new TElem[MAX_ARRAY_SIZE];
+
+    std::string key, value;
+    int arSize = 0;
+    while (std::cin >> key >> value) {
+        input[arSize].Set(key, value);
+        ++arSize;
+    }
+    for(int i = 0; i < arSize; ++i)  {
+        input_stl[i] = input[i]; 
+    }
+    std::cout << "Count of lines is " << arSize << std::endl;
+
+    std::chrono::time_point<std::chrono::system_clock> start_ts = std::chrono::system_clock::now();
+    NSort::RadixSort(input, arSize);
+    auto end_ts = std::chrono::system_clock::now();
+    uint64_t RadixSort_ts = std::chrono::duration_cast<duration_t>( end_ts - start_ts ).count();
+    
+    start_ts = std::chrono::system_clock::now();
+    std::stable_sort(input_stl, input_stl + arSize, cmp);
+    end_ts = std::chrono::system_clock::now();
+
+    uint64_t stl_sort_ts = std::chrono::duration_cast<duration_t>( end_ts - start_ts ).count();
+    std::cout << "Radix sort time: " << RadixSort_ts << DURATION_PREFIX << std::endl;
+    std::cout << "STL stable sort time: " << stl_sort_ts << DURATION_PREFIX << std::endl;
+
+    delete[] input;
+    delete[] input_stl;
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+$ g++ -std=c++20 -pedantic -Wall -Wextra -Wno-unused-variable banchmark.cpp sort.cpp -o banchmark
+$ ./banchmark < 07.t
+Count of lines is 100000
+Radix sort time: 194484us
+STL stable sort time: 43548us
+$ ./banchmark < 06.t
+Count of lines is 10000
+Radix sort time: 21722us
+STL stable sort time: 3281us
+$ ./banchmark < 05.t
+Count of lines is 100
+Radix sort time: 208us
+STL stable sort time: 21us
+$ ./banchmark < tests/06.t 
+Count of lines is 8010000
+Radix sort time: 11214341us
+STL stable sort time: 4719321us
+\end{lstlisting}
+
+Как можно заметить, с ростом количества элементов уменьшается разница во времени исполнения. Хоть наша сортировка и работает за линейное время, однако у нее довольно большая константа, поэтому сортировка из стандартной бибилотеки при небольших размерах массива работает в 2,5 раза быстрее. Разумеется, на очень больших размерах наступит момент, когда поразрядная сортировка обгонит std::stable\_sort(), сложность которой O(NlogN).
 
 \pagebreak
 

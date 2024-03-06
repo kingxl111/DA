@@ -6,3 +6,4 @@ vector.hpp
 benchmark
 a.out
 toSend.tar
+.gitignore

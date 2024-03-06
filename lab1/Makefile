@@ -10,5 +10,5 @@ sort.o: sort.cpp sort.hpp
 
 benchmark: sort.o  benchmark.cpp
 	$(CC) $(FLAGS) sort.o  benchmark.cpp -o benchmark
-clean:
+clean:	
 	rm *.o $(OUTPUT)

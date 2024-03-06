@@ -3,7 +3,7 @@
 
 const int KEY_LENGTH = 32;
 const int VALUE_LENGTH = 64;
-const int MAX_ARRAY_SIZE = 1e6;
+const int MAX_ARRAY_SIZE = 1e7;
 
 class TElem 
 {

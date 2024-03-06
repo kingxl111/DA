@@ -4,7 +4,7 @@ import sys
 import random
 import string
 
-TEST_COUNT = 7
+TEST_COUNT = 8
 
 def get_random_key():
     length = 32
