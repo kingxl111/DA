@@ -111,7 +111,7 @@ namespace vector {
         Vector::iterator begin();
         Vector::iterator end();
         void push_back(T element);
-
+        void resize(int sz);
         void pop_back();
 
         T& operator[](const int& idx) {
@@ -238,6 +238,26 @@ namespace vector {
         T* tmp_pointer = A.buffer;
         A.buffer = B.buffer;
         B.buffer = tmp_pointer;
+    }
+
+    template <class T>
+    void Vector<T>::resize(int sz) {
+        if(sz == this->len) {
+            return;
+        }
+        if((sz < this->len) || (sz <= this->capacity)) {
+            this->len = sz;
+            return;
+        }
+
+        T *newBuf = new T[sz];
+        for (int i = 0; i < this->len; ++i) {
+            newBuf[i] = this->buffer[i];
+        }
+        this->len = sz;
+        this->capacity = sz;
+        delete[] buffer;
+        buffer = newBuf;
     }
 
 }
