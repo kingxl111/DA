@@ -36,30 +36,7 @@ int bin_search(Vector<int>& keys, int k) {
 int main() {
 
     
-    Vector<int> ar;
-    int x;
-    while(cin >> x) {
-        ar.push_back(x);
-    }   
-
-    // Сортируем вставкой(неважно, что за квадрат, так как N небольшое)
-    for (int i = 0; i < ar.size(); ++i) {
-        int x = ar[i];
-        int j = 0;
-        while(ar[j] < x) {
-            ++j;
-        }
-        for (int c = i; c > j; --c) {
-            ar[c] = ar[c - 1];
-        }
-        ar[j] = x;
-    }
-
-    for (int i = 0; i < ar.size(); ++i)
-    {
-        cout << ar[i] << " ";
-    } 
-    cout << endl;
+    
     
 
     return 0;

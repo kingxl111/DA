@@ -4,6 +4,7 @@
 
 using std::cin;
 using std::cout;
+using std::endl;
 using std::string;
 using vector::Vector;
 
@@ -115,15 +116,16 @@ private:
 
     BNode* root_;
 
-    bool Find(Item val, BNode* node) { //Метод Find, ищет val в поддереве с корнем node и возвращает нашёл ли его
+    std::pair<bool, Item> Find(Item val, BNode* node) { //Метод Find, ищет val в поддереве с корнем node и возвращает нашёл ли его
         int indx = node->Place(val.key); //ищет строгий upperbound в node и сохраняет его номер как indx
         if (indx != 0 && val.key == node->keys[indx - 1].key) { //если строгому upperbound предшествует сам val, то он есть в node и возвращается true
-            return true; //также обработан случай, когда наибольший ключ не больше val, тогда Place вернёт node->size и val сравнится с последним ключом, который есть наибольший
+            return {true, node->keys[indx - 1]}; //также обработан случай, когда наибольший ключ не больше val, тогда Place вернёт node->size и val сравнится с последним ключом, который есть наибольший
         }
         if (node->inner) { //если строгому upperbound не предшествует val, то ему предшествует меньшее val число и val нет в узле, тогда спускаемся
             return (Find(val, node->sons[indx])); //в сына с номером indx, если node не лист
         }
-        return false; //если val нет в node и node лист, то val нет в поддереве
+        Item plug;
+        return {false, plug}; //если val нет в node и node лист, то val нет в поддереве
     }
 
 
@@ -278,9 +280,13 @@ public:
         Insert(val, root_);
     }
 
-    bool PubFind(Item val) { return Find(val, root_); }
-
-    void PubErase(Item val) { Erase(val, root_); }
+    std::pair<bool, Item> PubFind(Item val) { 
+        return Find(val, root_); 
+    }
+    
+    void PubErase(Item val) { 
+        Erase(val, root_); 
+    }
 };
 
 
@@ -298,32 +304,52 @@ int main() {
     BTree tree(t);
 
     Item val;
-    char com;
+    string com;
 
-    while(true) {
-        cin >> com;
-        switch (com) {
-        case ('+'):
+    while(cin >> com) {
+
+        if (com == "+") {
             cin >> val.key >> val.value;
             ToUpperBound(val.key);
-            tree.PubInsert(val);
-            break;
-        case ('-'):
-            cin >> val.key;
-            ToUpperBound(val.key);
-            tree.PubErase(val);
-            break;
-        case('f'):
-            cin >> val.key;
-            ToUpperBound(val.key);
-            cout << tree.PubFind(val) << '\n';
-            break;
-        case('t'):
-            tree.PubTraverse();
-            break;
-        default:
-            break;
+            if(tree.PubFind(val).first) {
+                cout << "Exist" << endl;
+            }
+            else {
+                tree.PubInsert(val);
+                cout << "OK" << endl;
+            }
         }
+
+        else if (com == "-") {
+
+            cin >> val.key;
+            ToUpperBound(val.key);
+            if(!tree.PubFind(val).first) {
+                cout << "NoSuchWord" << endl;
+            }
+            else {
+                tree.PubErase(val);
+                cout << "OK" << endl;
+            }
+        }
+        
+        else if(com == "!") {
+            string com2, pathToFile;
+            cin >> com2 >> pathToFile;
+            // TODO: to create a load and save
+        }
+        else {
+            val.key = com;
+            ToUpperBound(val.key);
+            std::pair<bool, Item> el = tree.PubFind(val);
+            if (el.first) {
+                cout << "OK: " << el.second.value << endl;
+            }
+            else {
+                cout << "NoSuchWord" << endl;
+            }
+        }
+        
     }
     return 0;
 }
