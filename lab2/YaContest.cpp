@@ -116,7 +116,7 @@ private:
 
     BNode* root_;
 
-    std::pair<bool, Item> Find(Item val, BNode* node) { //Метод Find, ищет val в поддереве с корнем node и возвращает нашёл ли его
+    std::pair<bool, Item> Find(Item &val, BNode* node) { //Метод Find, ищет val в поддереве с корнем node и возвращает нашёл ли его
         int indx = node->Place(val.key); //ищет строгий upperbound в node и сохраняет его номер как indx
         if (indx != 0 && val.key == node->keys[indx - 1].key) { //если строгому upperbound предшествует сам val, то он есть в node и возвращается true
             return {true, node->keys[indx - 1]}; //также обработан случай, когда наибольший ключ не больше val, тогда Place вернёт node->size и val сравнится с последним ключом, который есть наибольший
@@ -129,7 +129,7 @@ private:
     }
 
 
-    void Insert(Item val, BNode* node) { //вставляет ключ val в поддерево с корнем node
+    void Insert(Item &val, BNode* node) { //вставляет ключ val в поддерево с корнем node
         if (!node->inner) { //для листа место для вставки ищется с помощью Place, вставка с помощью InsertKey
             node->InsertKey(node->Place(val.key), val);
             return;
@@ -197,7 +197,7 @@ private:
         return EraseMin(node->sons[Procure(0, node)]);
     }
 
-    bool Erase(Item val, BNode* node) { 
+    bool Erase(Item &val, BNode* node) { 
         int indx = node->Place(val.key); //ищет где предположительно может быть val в nоde
         if (indx != 0 && val.key == node->keys[indx - 1].key) { //если он нашёлся в node, то происходит удаление из node
             indx -= 1;
@@ -268,7 +268,7 @@ public:
 
     void PubTraverse() { Traverse(0, root_); }
 
-    void PubInsert(Item val) { 
+    void PubInsert(Item &val) { 
         //Отдельно надо обработать вставку, когда корень максимально допустимого размера
         if (root_->size == 2 * t_ - 1) {
             BNode* node = new BNode(t_, 0, true); //Создаётся новый корень, его единственным сыном становится старый корень, а ключом 0
@@ -280,11 +280,11 @@ public:
         Insert(val, root_);
     }
 
-    std::pair<bool, Item> PubFind(Item val) { 
+    std::pair<bool, Item> PubFind(Item &val) { 
         return Find(val, root_); 
     }
     
-    void PubErase(Item val) { 
+    void PubErase(Item &val) { 
         Erase(val, root_); 
     }
 };
@@ -337,6 +337,12 @@ int main() {
             string com2, pathToFile;
             cin >> com2 >> pathToFile;
             // TODO: to create a load and save
+            if(com2 == "Save") {
+                
+            }
+            else if(com2 == "Load") {
+
+            }
         }
         else {
             val.key = com;
