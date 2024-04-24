@@ -1,12 +1,17 @@
 ﻿#include <iostream>
 #include <string>
+#include <fstream>
 #include "vector.hpp"
 
 using std::cin;
 using std::cout;
 using std::endl;
 using std::string;
+using std::ifstream;
+using std::ofstream;
 using vector::Vector;
+
+const int MAX_KEY_SIZE = 256;
 
 struct Item {
     string key;
@@ -244,7 +249,7 @@ private:
         delete node;
     }
 
-    void Traverse(int floor, BNode* node) { //вывод содержимого узлов дерева с нулевого этажа до этажа floor обходом preorder, отсчёт этажей сверху вних
+    void PrintNode(int floor, BNode* node) { //вывод содержимого узлов дерева с нулевого этажа до этажа floor обходом preorder, отсчёт этажей сверху вних
         if (node == nullptr) {
             return;
         }
@@ -254,8 +259,92 @@ private:
         }
         cout << '\n';
         for (int i = 0; i <= node->size; ++i) {
-            Traverse(floor + 1, node->sons[i]);
+            PrintNode(floor + 1, node->sons[i]);
         }
+    }
+
+    bool SaveKeys(BNode *node, ofstream &os) {
+        if(node == nullptr) {
+            return true;
+        }
+        int keysCount = node->size;
+        cout << "keys count: " << keysCount << endl;
+        os.write(reinterpret_cast<const char*>((&keysCount)), sizeof(keysCount));   
+        for (int i = 0; i < node->size; ++i) {   
+        
+            int sizeOfKey = node->keys[i].key.size();
+            os.write(reinterpret_cast<const char*>((&sizeOfKey)), sizeof(sizeOfKey));
+            os.write(node->keys[i].key.c_str(), sizeOfKey);
+
+            uint64_t value = node->keys[i].value;
+            os.write(reinterpret_cast<const char*>((&value)), sizeof(value));
+            cout << "{" << node->keys[i].key << ", " << node->keys[i].value << "}" << endl;
+        }
+        os.write(reinterpret_cast<const char*>((&node->inner)), sizeof(node->inner));
+        cout << "Node is not leaf: " << node->inner << endl;
+        return node->inner; // дальше записывать не нужно, если данный узел является листом
+    }
+
+    bool SaveNode(BNode *node, ofstream &os) {
+        if(node == nullptr) {
+            return false;
+        }
+        if(SaveKeys(node, os)) {
+            for (int i = 0; i < node->size + 1; ++i) {
+                SaveNode(node->sons[i], os);
+            }
+        }
+        return true;
+    }
+
+    void LoadKeys(BNode *newNode, ifstream &is) {
+        // BNode *newNode = new BNode(t_, t_ - 1, false);
+        int newKeysCount;
+        is.read(reinterpret_cast<char*>((&newKeysCount)), sizeof(newKeysCount));
+        newNode->size = newKeysCount;
+        cout << "keys count: " << newKeysCount << endl;
+        int keySize;
+        for (int i = 0; i < newKeysCount; ++i) {
+            Item newItem;
+            char buffer[MAX_KEY_SIZE];
+            is.read(reinterpret_cast<char*>((&keySize)), sizeof(keySize));
+            cout << "key size: " << keySize << endl;
+            is.read(buffer, keySize);
+            for (int j = 0; j < keySize; ++j) {
+                newItem.key += buffer[j];
+            }
+            // newItem.key = static_cast<string>(buffer);
+            // newItem.key.resize(keySize);
+            is.read(reinterpret_cast<char*>((&newItem.value)), sizeof(newItem.value));    
+            cout << "{" << newItem.key << ", " << newItem.value << "}" << endl;
+            newNode->keys.push_back(newItem);
+        }
+        bool isNotLeaf;
+        is.read(reinterpret_cast<char*>((&isNotLeaf)), sizeof(isNotLeaf));
+        newNode->inner = isNotLeaf;
+        cout << "Node is not leaf: " << isNotLeaf << endl;
+        // return newNode;
+    }
+
+    // TODO: fix the segfault
+    bool LoadNode(BNode *node, ifstream &is) {
+        // if(node == nullptr) {
+        //     return false;
+        // }
+        LoadKeys(node, is);
+        if(!node->inner) {
+            return true;
+        }
+        for (int i = 0; i < node->size + 1; ++i) {
+            node->sons[i] = new BNode(t_, t_ - 1, false);
+        }
+        for (int i = 0; i < node->size + 1; ++i) {
+            if (!LoadNode(node->sons[i], is) ) {
+                cout << "LoadNode problem" << endl;
+                return false;
+            }
+        }
+        return true;
     }
 
 public:
@@ -266,7 +355,7 @@ public:
     }
     ~BTree() { Clear(root_); }
 
-    void PubTraverse() { Traverse(0, root_); }
+    void PubPrintTree() { PrintNode(0, root_); }
 
     void PubInsert(Item &val) { 
         //Отдельно надо обработать вставку, когда корень максимально допустимого размера
@@ -287,6 +376,14 @@ public:
     void PubErase(Item &val) { 
         Erase(val, root_); 
     }
+
+    bool PubSave(ofstream &os) {
+        return SaveNode(this->root_, os);
+    }
+
+    bool PubLoad(ifstream &is) {
+        return LoadNode(this->root_, is);
+    }
 };
 
 
@@ -300,7 +397,7 @@ void ToUpperBound(string &s) {
 
 int main() {
 
-    int t = 3;
+    const int t = 3;
     BTree tree(t);
 
     Item val;
@@ -338,12 +435,34 @@ int main() {
             cin >> com2 >> pathToFile;
             // TODO: to create a load and save
             if(com2 == "Save") {
-                
+                ofstream os;
+                os.open(pathToFile);
+                if(!tree.PubSave(os)) {
+                    cout << "ERROR:" << endl;
+                }
+                else {
+                    cout << "OK" << endl;
+                }
+                os.close();
             }
             else if(com2 == "Load") {
-
+                ifstream is;
+                is.open(pathToFile);
+                BTree newTree(t);
+                if(!newTree.PubLoad(is)) {
+                    cout << "ERROR:" << endl;
+                }
+                else {
+                    tree.~BTree();
+                    tree = newTree;
+                    cout << "OK" << endl;
+                }
             }
         }
+        else if (com == "PrintTree") {
+            tree.PubPrintTree();
+        }
+
         else {
             val.key = com;
             ToUpperBound(val.key);
