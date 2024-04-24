@@ -1,7 +1,7 @@
 ﻿#include <iostream>
 #include <string>
 #include <fstream>
-#include "vector.hpp"
+#include <cstdint>
 
 using std::cin;
 using std::cout;
@@ -9,28 +9,275 @@ using std::endl;
 using std::string;
 using std::ifstream;
 using std::ofstream;
-using vector::Vector;
 
+
+const int minCapacity = 5;
+const int MAX_BUFFER_SIZE = 1e7;
 const int MAX_KEY_SIZE = 256;
+
+namespace vector {
+
+    template <class T>
+    class Vector {
+    private:
+
+        int len;
+        int capacity;
+        T* buffer = nullptr;
+
+        bool is_lazy = false;
+
+        bool try_increase_buffer();
+
+        bool try_decrease_buffer();
+
+
+    public:
+
+        class iterator;
+
+        template<class Type>
+        friend void swap(Vector<Type>& A, Vector<Type>& B);
+
+        class iterator {
+        private:
+            Vector<T>* vector;
+            T* current;
+
+        public:
+
+            iterator() :
+                vector(nullptr), current(nullptr) {}
+
+            iterator(Vector<T>* vectorPtr, T* current):
+                vector(vectorPtr), current(current) {}
+
+            iterator(Vector<T>::iterator& sIterator): 
+                vector(sIterator.vector), current(sIterator.current) {
+            }
+
+
+            iterator& operator=(const iterator& sIterator);
+            iterator& operator++(); 
+            iterator& operator--(); 
+            const T operator*() const;
+
+            friend class Vector;
+        };
+
+
+        Vector() : capacity(minCapacity), len(0) {
+            buffer = new T[capacity];
+        }
+
+        Vector(bool _is_lazy) : capacity(minCapacity), len(0), is_lazy(_is_lazy) {
+            buffer = new T[capacity];
+        }
+
+        ~Vector() {
+            delete[] buffer;
+            buffer = nullptr;
+            len = 0;
+            capacity = 0;
+            is_lazy = false;
+        }
+
+        Vector(int _size) : len(_size) {
+            if(len <= 0) 
+                throw std::runtime_error("Error: Wrong given len");
+            capacity = len * 2;
+            buffer = new T[capacity];
+        } 
+
+        Vector(int _size, T element) : len(_size) {
+            if(len <= 0) 
+                throw std::runtime_error("Error: Wrong given len");
+
+            capacity = len * 2;
+            buffer = new T[capacity];
+
+            for(int i = 0; i < capacity; ++i) 
+                buffer[i] = element;
+        } 
+
+        Vector(int _size, bool _is_lazy) : len(_size), is_lazy(_is_lazy) {
+            if(len <= 0) 
+                throw std::runtime_error("Error: Wrong given len");
+            capacity = len * 2;
+            buffer = new T[capacity];
+        } 
+
+        Vector(int _size, T element, bool _is_lazy) : len(_size), is_lazy(_is_lazy) {
+            if(len <= 0) 
+                throw std::runtime_error("Error: Wrong given len");
+
+            capacity = len * 2;
+            buffer = new T[capacity];
+
+            for(int i = 0; i < capacity; ++i) 
+                buffer[i] = element;
+        } 
+
+        Vector::iterator begin();
+        Vector::iterator end();
+        void push_back(T element);
+        void resize(int sz);
+        void pop_back();
+
+        T& operator[](const int& idx) {
+            return buffer[idx];
+        } 
+
+        const T& operator[](const int& idx) const {
+            return buffer[idx];
+        }
+
+        bool empty() const {
+            return len == 0;
+        }
+
+        int size() const {
+            return len;
+        }
+
+        int get_capacity() const {
+            return capacity;
+        }
+
+    };
+
+    template <class T>
+    typename Vector<T>::iterator Vector<T>::begin() {
+        Vector::iterator iterator;
+        iterator.vector = this;
+        iterator.current = this->buffer;
+        return iterator;
+    }
+
+    template<class T>
+    typename Vector<T>::iterator Vector<T>::end() {
+        Vector::iterator iterator;
+        iterator.vector = this;
+        iterator.current = &(this->buffer[this->len]);
+        return iterator;
+    }
+
+    template <class T>
+    typename Vector<T>::iterator& Vector<T>::iterator::operator=(const Vector<T>::iterator& sIterator) {
+        current = sIterator.current;
+        vector = sIterator.vector;
+    }
+
+    template <class T>
+    typename Vector<T>::iterator& Vector<T>::iterator::operator++() {
+        ++current;
+        return *this;
+    }
+
+    template <class T>
+    typename Vector<T>::iterator& Vector<T>::iterator::operator--() {
+        --current;
+        return *this;
+    }
+
+    template<class T>
+    inline bool Vector<T>::try_increase_buffer() {
+        
+        if(is_lazy) {
+            if(capacity > len ) 
+                return true;
+        } else {
+            if(capacity > len * 2)
+                return true;
+        }
+
+        int new_capacity = std::min(capacity * 2, MAX_BUFFER_SIZE);
+        T* tmp_buffer = new T[new_capacity];
+
+        if(tmp_buffer == nullptr)
+            return false;
+
+        for(int i = 0; i < len; ++i) {
+            tmp_buffer[i] = buffer[i];
+        }
+
+        delete[] buffer;
+        buffer = tmp_buffer;
+        capacity = new_capacity;
+        return true;
+    }
+
+    template<class T>
+    inline bool Vector<T>::try_decrease_buffer() {
+        if(capacity < len * 4) 
+            return true;
+        
+        int new_capacity = std::min(capacity / 2, minCapacity);
+        T* tmp_buffer = new T[new_capacity];
+
+        if(tmp_buffer == nullptr) 
+            return false;
+        
+        for(int i = 0; i < len; ++i) 
+            tmp_buffer[i] = buffer[i];
+        
+        delete[] buffer;
+        buffer = tmp_buffer;
+        capacity = new_capacity;
+        return false;
+    }
+
+    template<class T>
+    inline void Vector<T>::push_back(T element) {
+        if(!try_increase_buffer()) 
+            throw std::runtime_error("Error: Can't increase buffer");
+
+        buffer[len++] = element;       
+    }
+
+    template<class T>
+    inline void Vector<T>::pop_back() {
+        if(!try_decrease_buffer()) 
+            throw std::runtime_error("Error: Can't decrease buffer");
+        
+        ~buffer[len--];
+    }
+
+    template <class T>
+    void swap(Vector<T>& A, Vector<T>& B) {
+        T* tmp_pointer = A.buffer;
+        A.buffer = B.buffer;
+        B.buffer = tmp_pointer;
+    }
+
+    template <class T>
+    void Vector<T>::resize(int sz) {
+        if(sz == this->len) {
+            return;
+        }
+        if((sz < this->len) || (sz <= this->capacity)) {
+            this->len = sz;
+            return;
+        }
+
+        T *newBuf = new T[sz];
+        for (int i = 0; i < this->len; ++i) {
+            newBuf[i] = this->buffer[i];
+        }
+        this->len = sz;
+        this->capacity = sz;
+        delete[] buffer;
+        buffer = newBuf;
+    }
+
+}
+
+using vector::Vector;
 
 struct Item {
     string key;
     uint64_t value;
 };
-
-struct nullItem { //Класс, выполняющий функции optional. Возвращается публичными интерфейсами методом, ищущих upperbound и lowerbound и
-    Item val;     
-    bool real; //хранит Item и bool. Если bool = false, то содержимого Item фактически не существует.
-};
-
-std::ostream& operator<<(std::ostream& os, const nullItem& nullval) { //оператор вывода в стандартный поток для класса nullItem
-    if (nullval.real) {
-        os << nullval.val.key << nullval.val.value;
-        return os;
-    }
-    os << "none";
-    return os;
-}
 
 class BTree {
 private:
@@ -220,7 +467,7 @@ private:
             }
             node->MergeSons(indx);
             if (node->size == 0) { //если node корень, то он в результате этих действий мог лишиться ключей и остаться с одним сыном
-              //так как размер корня не ограничен снизу t - 1
+                //так как размер корня не ограничен снизу t - 1
                 root_ = node->sons[0]; //тогда новым корнем становится его единственный сын, а старый корень удаляется
                 delete node;
                 node = root_;
@@ -249,7 +496,7 @@ private:
         delete node;
     }
 
-    void PrintNode(int floor, BNode* node) { //вывод содержимого узлов дерева с нулевого этажа до этажа floor обходом preorder, отсчёт этажей сверху вних
+    void PrintNode(int floor, BNode* node) { //вывод содержимого узлов дерева с нулевого этажа до этажа floor обходом preorder, отсчёт этажей сверху вниз
         if (node == nullptr) {
             return;
         }
@@ -268,87 +515,115 @@ private:
             return true;
         }
         int keysCount = node->size;
-        cout << "keys count: " << keysCount << endl;
+        // cout << "keys count: " << keysCount << endl;
         os.write(reinterpret_cast<const char*>((&keysCount)), sizeof(keysCount));   
+        if(os.fail()) {
+            throw "Can't write";
+        }
         for (int i = 0; i < node->size; ++i) {   
         
             int sizeOfKey = node->keys[i].key.size();
             os.write(reinterpret_cast<const char*>((&sizeOfKey)), sizeof(sizeOfKey));
+            if(os.fail()) {
+                throw "Can't write";
+            }
             os.write(node->keys[i].key.c_str(), sizeOfKey);
-
+            if(os.fail()) {
+                throw "Can't write";
+            }
             uint64_t value = node->keys[i].value;
             os.write(reinterpret_cast<const char*>((&value)), sizeof(value));
-            cout << "{" << node->keys[i].key << ", " << node->keys[i].value << "}" << endl;
+            if(os.fail()) {
+                throw "Can't write";
+            }
+            // cout << "{" << node->keys[i].key << ", " << node->keys[i].value << "}" << endl;
         }
         os.write(reinterpret_cast<const char*>((&node->inner)), sizeof(node->inner));
-        cout << "Node is not leaf: " << node->inner << endl;
+        if(os.fail()) {
+            throw "Can't write";
+        }
+        // cout << "Node is not leaf: " << node->inner << endl;
         return node->inner; // дальше записывать не нужно, если данный узел является листом
     }
 
-    bool SaveNode(BNode *node, ofstream &os) {
+    void SaveNode(BNode *node, ofstream &os) {
         if(node == nullptr) {
-            return false;
+            return;
         }
         if(SaveKeys(node, os)) {
             for (int i = 0; i < node->size + 1; ++i) {
                 SaveNode(node->sons[i], os);
             }
         }
-        return true;
     }
 
     void LoadKeys(BNode *newNode, ifstream &is) {
         // BNode *newNode = new BNode(t_, t_ - 1, false);
         int newKeysCount;
+        // cout << "Loading the keys..." << endl;
         is.read(reinterpret_cast<char*>((&newKeysCount)), sizeof(newKeysCount));
+        if(is.fail()) {
+            throw "Invalid read";
+        }
         newNode->size = newKeysCount;
-        cout << "keys count: " << newKeysCount << endl;
+        // cout << "keys count: " << newKeysCount << endl;
         int keySize;
         for (int i = 0; i < newKeysCount; ++i) {
             Item newItem;
             char buffer[MAX_KEY_SIZE];
             is.read(reinterpret_cast<char*>((&keySize)), sizeof(keySize));
-            cout << "key size: " << keySize << endl;
+            if(is.fail()) {
+                throw "Invalid read";
+            }
+            // cout << "key size: " << keySize << endl;
             is.read(buffer, keySize);
+            if(is.fail()) {
+                throw "Invalid read";
+            }
             for (int j = 0; j < keySize; ++j) {
                 newItem.key += buffer[j];
             }
-            // newItem.key = static_cast<string>(buffer);
-            // newItem.key.resize(keySize);
-            is.read(reinterpret_cast<char*>((&newItem.value)), sizeof(newItem.value));    
-            cout << "{" << newItem.key << ", " << newItem.value << "}" << endl;
-            newNode->keys.push_back(newItem);
+            is.read(reinterpret_cast<char*>((&newItem.value)), sizeof(newItem.value)); 
+            if(is.fail()) {
+                throw "Invalid read";
+            }
+            // newNode->keys.push_back(newItem); There was a mistake   
+            newNode->keys[i] = newItem; 
+            // cout << "{" << newNode->keys[i].key << ", " << newNode->keys[i].value << "}" << endl;
         }
         bool isNotLeaf;
         is.read(reinterpret_cast<char*>((&isNotLeaf)), sizeof(isNotLeaf));
+        if(is.fail()) {
+            throw "Invalid read";
+        }
         newNode->inner = isNotLeaf;
-        cout << "Node is not leaf: " << isNotLeaf << endl;
+        // cout << "Node is not leaf: " << isNotLeaf << endl;
         // return newNode;
+    
     }
 
-    // TODO: fix the segfault
-    bool LoadNode(BNode *node, ifstream &is) {
-        // if(node == nullptr) {
-        //     return false;
-        // }
-        LoadKeys(node, is);
+    void LoadNode(BNode *node, ifstream &is) {
+
+        try {
+            LoadKeys(node, is);
+        }
+        catch(...) {
+            // cout << "Load keys was ruined!" << endl;
+            throw "Bad load";
+        }
         if(!node->inner) {
-            return true;
+            return;
         }
         for (int i = 0; i < node->size + 1; ++i) {
             node->sons[i] = new BNode(t_, t_ - 1, false);
         }
         for (int i = 0; i < node->size + 1; ++i) {
-            if (!LoadNode(node->sons[i], is) ) {
-                cout << "LoadNode problem" << endl;
-                return false;
-            }
+            LoadNode(node->sons[i], is);
         }
-        return true;
     }
 
 public:
-    //публичные обёртки для методов
+    // Публичные обёртки для методов
     BTree(int t) {
         t_ = t;
         root_ = new BNode(t_, 0, false);
@@ -378,11 +653,31 @@ public:
     }
 
     bool PubSave(ofstream &os) {
-        return SaveNode(this->root_, os);
+        try {
+            SaveNode(this->root_, os);
+        }
+        catch(...) {
+            return false;
+        }
+        return true;
     }
 
     bool PubLoad(ifstream &is) {
-        return LoadNode(this->root_, is);
+        try {
+            LoadNode(this->root_, is);
+        }
+        catch(...) {
+            return false;
+        }
+        return true;
+    }
+
+    void Swap(BTree &tree) {
+        BTree tmp(this->t_);
+        tmp.root_ = this->root_;
+        this->root_ = tree.root_;
+        tree.root_ = tmp.root_;
+        tmp.root_ = nullptr;
     }
 };
 
@@ -397,7 +692,7 @@ void ToUpperBound(string &s) {
 
 int main() {
 
-    const int t = 3;
+    const int t = 16;
     BTree tree(t);
 
     Item val;
@@ -436,27 +731,43 @@ int main() {
             // TODO: to create a load and save
             if(com2 == "Save") {
                 ofstream os;
-                os.open(pathToFile);
-                if(!tree.PubSave(os)) {
-                    cout << "ERROR:" << endl;
+                try {
+                    os.open(pathToFile);
+                }
+                catch(...) {
+                    cout << "ERROR:" << endl; 
+                    continue;
+                }
+
+                if (tree.PubSave(os)) {
+                    cout << "OK" << endl;
                 }
                 else {
-                    cout << "OK" << endl;
+                    cout << "ERROR: saving" << endl;
                 }
                 os.close();
             }
             else if(com2 == "Load") {
                 ifstream is;
-                is.open(pathToFile);
-                BTree newTree(t);
-                if(!newTree.PubLoad(is)) {
-                    cout << "ERROR:" << endl;
+                try {
+                    is.open(pathToFile);
                 }
-                else {
-                    tree.~BTree();
-                    tree = newTree;
+                catch(...) {
+                    cout << "ERROR:" << endl; 
+                    continue;
+                }
+                
+                BTree *newTree = new BTree(t);
+                if (newTree->PubLoad(is)) {
+                    tree.Swap(*newTree);
                     cout << "OK" << endl;
                 }
+                else {
+                    cout << "ERROR: loading" << endl;
+                    continue;
+                }
+                delete newTree;
+                is.close();
             }
         }
         else if (com == "PrintTree") {
