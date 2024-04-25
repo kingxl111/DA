@@ -603,14 +603,7 @@ private:
     }
 
     void LoadNode(BNode *node, ifstream &is) {
-
-        try {
-            LoadKeys(node, is);
-        }
-        catch(...) {
-            // cout << "Load keys was ruined!" << endl;
-            throw "Bad load";
-        }
+        LoadKeys(node, is);
         if(!node->inner) {
             return;
         }
@@ -652,24 +645,12 @@ public:
         Erase(val, root_); 
     }
 
-    bool PubSave(ofstream &os) {
-        try {
-            SaveNode(this->root_, os);
-        }
-        catch(...) {
-            return false;
-        }
-        return true;
+    void PubSave(ofstream &os) {
+        SaveNode(this->root_, os);
     }
 
-    bool PubLoad(ifstream &is) {
-        try {
-            LoadNode(this->root_, is);
-        }
-        catch(...) {
-            return false;
-        }
-        return true;
+    void PubLoad(ifstream &is) {
+        LoadNode(this->root_, is);
     }
 
     void Swap(BTree &tree) {
@@ -692,7 +673,10 @@ void ToUpperBound(string &s) {
 
 int main() {
 
-    const int t = 16;
+    // std::ios::sync_with_stdio(false);
+    // cin.tie(0);
+
+    const int t = 3;
     BTree tree(t);
 
     Item val;
@@ -728,46 +712,32 @@ int main() {
         else if(com == "!") {
             string com2, pathToFile;
             cin >> com2 >> pathToFile;
-            // TODO: to create a load and save
+            // TODO: find the mistake... Why does it fall on 5?
             if(com2 == "Save") {
-                ofstream os;
+                ofstream os(pathToFile, std::ios::binary);
+
                 try {
-                    os.open(pathToFile);
+                    tree.PubSave(os); 
                 }
                 catch(...) {
-                    cout << "ERROR:" << endl; 
+                    cout << "ERROR: saving" << endl;
                     continue;
                 }
-
-                if (tree.PubSave(os)) {
-                    cout << "OK" << endl;
-                }
-                else {
-                    cout << "ERROR: saving" << endl;
-                }
-                os.close();
+                cout << "OK" << endl;
             }
             else if(com2 == "Load") {
-                ifstream is;
+                ifstream is(pathToFile, std::ios::binary); 
+                BTree *newTree = new BTree(t);
                 try {
-                    is.open(pathToFile);
+                    newTree->PubLoad(is);    
                 }
                 catch(...) {
-                    cout << "ERROR:" << endl; 
-                    continue;
-                }
-                
-                BTree *newTree = new BTree(t);
-                if (newTree->PubLoad(is)) {
-                    tree.Swap(*newTree);
-                    cout << "OK" << endl;
-                }
-                else {
                     cout << "ERROR: loading" << endl;
                     continue;
                 }
+                tree.Swap(*newTree);
+                cout << "OK" << endl;
                 delete newTree;
-                is.close();
             }
         }
         else if (com == "PrintTree") {
