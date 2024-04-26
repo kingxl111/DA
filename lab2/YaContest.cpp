@@ -2,55 +2,52 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstdint>
 
 using namespace std;
+
+const int MAX_KEY_SIZE = 256;
 
 struct Item {
     string key;
     uint64_t value;
-    bool operator==(Item i2) {
-        return key == i2.key;
+    bool operator==(Item &i2) {
+        return this->key == i2.key;
     }
-    bool operator<(Item i2) {
-        return key < i2.key;
+    bool operator<(Item &i2) {
+        return this->key < i2.key;
     }
-    bool operator<=(Item i2) {
-        return key <= i2.key;
+    bool operator<=(Item &i2) {
+        return this->key <= i2.key;
     }
-    bool operator>=(Item i2) {
-        return key >= i2.key;
+    bool operator>=(Item &i2) {
+        return this->key >= i2.key;
     }
-    bool operator>(Item i2) {
-        return key > i2.key;
+    bool operator>(Item &i2) {
+        return this->key > i2.key;
     }
 };
-
-struct nullItem {
-    Item val;
-    bool real;
-};
-
 
 class BTree {
 private:
     int t_;
-    struct Node {
+    struct BNode {
         int t, size;
         bool isNotLeaf;
         vector<Item> keys;
-        vector<Node*> children;
+        vector<BNode*> children;
         vector<int> subTreeSize;
 
-        Node(int t, int size, bool isNotLeaf)
+        BNode(int t, int size, bool isNotLeaf)
             : t(t), size(size), isNotLeaf(isNotLeaf) {
             keys.resize(2 * t - 1);
             children.resize(2 * t);
             subTreeSize.resize(2 * t);
         }
 
-        int Place(Item &val) {
+        int Place(string &val) {
             for (int i = 0; i < size; ++i) {
-                if (val < keys[i]) {
+                if (val < keys[i].key) {
                     return i;
                 }
             }
@@ -64,7 +61,7 @@ private:
             keys[indx] = val;
             size += 1;
         }
-        void InsertChild(int indx, Node* node, int subtreesz) {
+        void InsertChild(int indx, BNode* node, int subtreesz) {
             for (int i = size; indx < i; --i) {
                 children[i] = children[i - 1];
                 subTreeSize[i] = subTreeSize[i - 1];
@@ -77,8 +74,8 @@ private:
             if (!isNotLeaf) {
                 return;
             }
-            Node* child0 = children[indx];
-            Node* child1 = new Node(t, t - 1, child0->isNotLeaf);
+            BNode* child0 = children[indx];
+            BNode* child1 = new BNode(t, t - 1, child0->isNotLeaf);
             int lsubtreesz = subTreeSize[indx] - t;
             int rsubtreesz = t - 1;
             for (int i = t; i < 2 * t - 1; ++i) {
@@ -102,8 +99,8 @@ private:
             if (!isNotLeaf) {
                 return;
             }
-            Node* left = children[indx];
-            Node* right = children[indx + 1];
+            BNode* right = children[indx + 1];
+            BNode* left = children[indx];
             left->keys[t - 1] = keys[indx];
             for (int i = 0; i < t - 1; ++i) {
                 left->keys[t + i] = right->keys[i];
@@ -135,11 +132,12 @@ private:
 
     };
 
-    Node* root_;
+    BNode* root_;
 
-    pair<bool, Item> Find(Item &val, Node* node) {
-        int indx = node->Place(val);
-        if (indx != 0 && val == node->keys[indx - 1]) {
+    pair<bool, Item> Find(Item &val, BNode* node) {
+        int indx = node->Place(val.key);
+        if (indx != 0 && val.key == node->keys[indx - 1].key) {
+            val = node->keys[indx - 1];
             return {true, val};
         }
         if (node->isNotLeaf) {
@@ -147,13 +145,14 @@ private:
         }
         return {false, val};
     }
+    
 
-    void Insert(Item &val, Node* node) {
+    void Insert(Item &val, BNode* node) {
         if (!node->isNotLeaf) {
-            node->InsertKey(node->Place(val), val);
+            node->InsertKey(node->Place(val.key), val);
             return;
         }
-        int indx = node->Place(val);
+        int indx = node->Place(val.key);
         if ((node->children[indx])->size == 2 * t_ - 1) {
             node->SplitChild(indx);
             if (val >= node->keys[indx]) {
@@ -164,13 +163,13 @@ private:
         Insert(val, node->children[indx]);
     }
 
-    int Procure(int indx, Node* node) {
-        Node* son = node->children[indx];
+    int Procure(int indx, BNode* node) {
+        BNode* son = node->children[indx];
         if (son->size >= t_) {
             return indx;
         }
         if (indx != 0 && (node->children[indx - 1])->size >= t_) {
-            Node* lbroth = node->children[indx - 1];
+            BNode* lbroth = node->children[indx - 1];
             int lsize = lbroth->size;
             int lsubtreesz = lbroth->subTreeSize[lsize];
             son->InsertKey(0, node->keys[indx - 1]);
@@ -182,7 +181,7 @@ private:
             return indx;
         }
         if (indx != node->size && (node->children[indx + 1])->size >= t_) {
-            Node* rbroth = node->children[indx + 1];
+            BNode* rbroth = node->children[indx + 1];
             int rsubtreesz = rbroth->subTreeSize[0];
             son->InsertKey(t_ - 1, node->keys[indx]);
             son->InsertChild(t_, rbroth->children[0], rsubtreesz);
@@ -203,7 +202,7 @@ private:
         return indx;
     }
 
-    Item EraseMax(Node* node) {
+    Item EraseMax(BNode* node) {
         int size = node->size;
         if (!node->isNotLeaf) {
             Item max = node->keys[size - 1];
@@ -215,7 +214,7 @@ private:
         return EraseMax(node->children[indx]);
     }
 
-    Item EraseMin(Node* node) {
+    Item EraseMin(BNode* node) {
         if (!node->isNotLeaf) {
             Item min = node->keys[0];
             node->DeleteKey(0);
@@ -225,8 +224,8 @@ private:
         return EraseMin(node->children[Procure(0, node)]);
     }
 
-    bool Erase(Item &val, Node* node) {
-        int indx = node->Place(val);
+    bool Erase(Item &val, BNode* node) {
+        int indx = node->Place(val.key);
         if (indx != 0 && val == node->keys[indx - 1]) {
             indx -= 1;
             if (!node->isNotLeaf) {
@@ -267,7 +266,7 @@ private:
         return was;
     }
 
-    void Clear(Node* node) {
+    void Clear(BNode* node) {
         if (node == nullptr) {
             return;
         }
@@ -277,7 +276,7 @@ private:
         delete node;
     }
 
-    void PrintTree(int floor, Node* node) {
+    void PrintTree(int floor, BNode* node) {
         if (node == nullptr) {
             return;
         }
@@ -291,10 +290,104 @@ private:
         }
     }
 
+bool SaveKeys(BNode *node, ofstream &os) {
+        if(node == nullptr) {
+            return true;
+        }
+        int keysCount = node->size;
+        os.write(reinterpret_cast<const char*>((&keysCount)), sizeof(keysCount));   
+        if(os.fail()) {
+            throw "Can't write";
+        }
+        for (int i = 0; i < node->size; ++i) {   
+        
+            int sizeOfKey = node->keys[i].key.size();
+            os.write(reinterpret_cast<const char*>((&sizeOfKey)), sizeof(sizeOfKey));
+            if(os.fail()) {
+                throw "Can't write";
+            }
+            os.write(node->keys[i].key.c_str(), sizeOfKey);
+            if(os.fail()) {
+                throw "Can't write";
+            }
+            uint64_t value = node->keys[i].value;
+            os.write(reinterpret_cast<const char*>((&value)), sizeof(value));
+            if(os.fail()) {
+                throw "Can't write";
+            }
+        }
+        os.write(reinterpret_cast<const char*>((&node->isNotLeaf)), sizeof(node->isNotLeaf));
+        if(os.fail()) {
+            throw "Can't write";
+        }
+        return node->isNotLeaf; 
+    }
+
+    void SaveNode(BNode *node, ofstream &os) {
+        if(node == nullptr) {
+            return;
+        }
+        if(SaveKeys(node, os)) {
+            for (int i = 0; i < node->size + 1; ++i) {
+                SaveNode(node->children[i], os);
+            }
+        }
+    }
+
+    void LoadKeys(BNode *newNode, ifstream &is) {
+        int newKeysCount;
+        is.read(reinterpret_cast<char*>((&newKeysCount)), sizeof(newKeysCount));
+        if(is.fail()) {
+            throw "Invalid read";
+        }
+        newNode->size = newKeysCount;
+        int keySize;
+        for (int i = 0; i < newKeysCount; ++i) {
+            Item newItem;
+            char buffer[MAX_KEY_SIZE];
+            is.read(reinterpret_cast<char*>((&keySize)), sizeof(keySize));
+            if(is.fail()) {
+                throw "Invalid read";
+            }
+            is.read(buffer, keySize);
+            if(is.fail()) {
+                throw "Invalid read";
+            }
+            for (int j = 0; j < keySize; ++j) {
+                newItem.key += buffer[j];
+            }
+            is.read(reinterpret_cast<char*>((&newItem.value)), sizeof(newItem.value)); 
+            if(is.fail()) {
+                throw "Invalid read";
+            }
+            newNode->keys[i] = newItem; 
+        }
+        bool isNotLeaf;
+        is.read(reinterpret_cast<char*>((&isNotLeaf)), sizeof(isNotLeaf));
+        if(is.fail()) {
+            throw "Invalid read";
+        }
+        newNode->isNotLeaf = isNotLeaf;
+    }
+
+    void LoadNode(BNode *node, ifstream &is) {
+        LoadKeys(node, is);
+        if(!node->isNotLeaf) {
+            return;
+        }
+        for (int i = 0; i < node->size + 1; ++i) {
+            node->children[i] = new BNode(t_, t_ - 1, false);
+        }
+        for (int i = 0; i < node->size + 1; ++i) {
+            LoadNode(node->children[i], is);
+        }
+    }
+
+
 public:
     BTree(int t) {
         t_ = t;
-        root_ = new Node(t_, 0, false);
+        root_ = new BNode(t_, 0, false);
     }
     ~BTree() { 
         Clear(root_); 
@@ -306,7 +399,7 @@ public:
 
     void PubInsert(Item &val) {
         if (root_->size == 2 * t_ - 1) {
-            Node* node = new Node(t_, 0, true);
+            BNode* node = new BNode(t_, 0, true);
             int subtreesz = 2 * t_ - 1;
             for (int i = 0; i <= 2 * t_ - 1; ++i) { 
                 subtreesz += root_->subTreeSize[i];
@@ -325,6 +418,22 @@ public:
 
     void PubErase(Item &val) { 
         Erase(val, root_); 
+    }
+
+    void PubSave(ofstream &os) {
+        SaveNode(this->root_, os);
+    }
+
+    void PubLoad(ifstream &is) {
+        LoadNode(this->root_, is);
+    }
+
+    void Swap(BTree &tree) {
+        BTree tmp(this->t_);
+        tmp.root_ = this->root_;
+        this->root_ = tree.root_;
+        tree.root_ = tmp.root_;
+        tmp.root_ = nullptr;
     }
 };
 
@@ -361,7 +470,6 @@ int main() {
                 cout << "OK" << endl;
             }
         }
-
         else if (com == "-") {
 
             cin >> val.key;
@@ -378,7 +486,7 @@ int main() {
         else if(com == "!") {
             string com2, pathToFile;
             cin >> com2 >> pathToFile;
-            // TODO: find the mistake... Why does it fall on 5?
+
             if(com2 == "Save") {
                 ofstream os(pathToFile, std::ios::binary);
 
@@ -409,8 +517,8 @@ int main() {
         else if (com == "PrintTree") {
             tree.PubPrintTree();
         }
-
         else {
+
             val.key = com;
             ToUpperBound(val.key);
             std::pair<bool, Item> el = tree.PubFind(val);
