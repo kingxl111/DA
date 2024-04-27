@@ -36,18 +36,16 @@ private:
         bool isNotLeaf;
         vector<Item> keys;
         vector<BNode*> children;
-        vector<int> subTreeSize;
 
         BNode(int t, int size, bool isNotLeaf)
             : t(t), size(size), isNotLeaf(isNotLeaf) {
             keys.resize(2 * t - 1);
             children.resize(2 * t);
-            subTreeSize.resize(2 * t);
         }
 
-        int Place(string &val) {
+        int Place(Item &val) {
             for (int i = 0; i < size; ++i) {
-                if (val < keys[i].key) {
+                if (val < keys[i]) {
                     return i;
                 }
             }
@@ -61,13 +59,12 @@ private:
             keys[indx] = val;
             size += 1;
         }
-        void InsertChild(int indx, BNode* node, int subtreesz) {
+
+        void InsertChild(int indx, BNode* node) {
             for (int i = size; indx < i; --i) {
                 children[i] = children[i - 1];
-                subTreeSize[i] = subTreeSize[i - 1];
             }
             children[indx] = node;
-            subTreeSize[indx] = subtreesz;
         }
 
         void SplitChild(int indx) {
@@ -76,23 +73,15 @@ private:
             }
             BNode* child0 = children[indx];
             BNode* child1 = new BNode(t, t - 1, child0->isNotLeaf);
-            int lsubtreesz = subTreeSize[indx] - t;
-            int rsubtreesz = t - 1;
+            
             for (int i = t; i < 2 * t - 1; ++i) {
                 child1->keys[i - t] = child0->keys[i];
                 child1->children[i - t] = child0->children[i];
-                child1->subTreeSize[i - t] = child0->subTreeSize[i];
-                rsubtreesz += child0->subTreeSize[i];
-                lsubtreesz -= child0->subTreeSize[i];
             }
             child1->children[t - 1] = child0->children[2 * t - 1];
-            child1->subTreeSize[t - 1] = child0->subTreeSize[2 * t - 1];
-            rsubtreesz += child0->subTreeSize[2 * t - 1];
-            lsubtreesz -= child0->subTreeSize[2 * t - 1];
             InsertKey(indx, child0->keys[t - 1]);
-            InsertChild(indx + 1, child1, rsubtreesz);
+            InsertChild(indx + 1, child1);
             child0->size = t - 1;
-            subTreeSize[indx] = lsubtreesz;
         }
 
         void MergeChildren(int indx) {
@@ -105,12 +94,9 @@ private:
             for (int i = 0; i < t - 1; ++i) {
                 left->keys[t + i] = right->keys[i];
                 left->children[t + i] = right->children[i];
-                left->subTreeSize[t + i] = right->subTreeSize[i];
             }
             left->children[2 * t - 1] = right->children[t - 1];
-            left->subTreeSize[2 * t - 1] = right->subTreeSize[t - 1];
             left->size = 2 * t - 1;
-            subTreeSize[indx] += subTreeSize[indx + 1] + 1;
             DeleteKey(indx);
             DeleteChild(indx + 1);
             delete right;
@@ -119,7 +105,6 @@ private:
         void DeleteChild(int indx) {
             for (int i = indx; i <= size; ++i) {
                 children[i] = children[i + 1];
-                subTreeSize[i] = subTreeSize[i + 1];
             }
         }
 
@@ -135,7 +120,7 @@ private:
     BNode* root_;
 
     pair<bool, Item> Find(Item &val, BNode* node) {
-        int indx = node->Place(val.key);
+        int indx = node->Place(val);
         if (indx != 0 && val.key == node->keys[indx - 1].key) {
             val = node->keys[indx - 1];
             return {true, val};
@@ -149,17 +134,16 @@ private:
 
     void Insert(Item &val, BNode* node) {
         if (!node->isNotLeaf) {
-            node->InsertKey(node->Place(val.key), val);
+            node->InsertKey(node->Place(val), val);
             return;
         }
-        int indx = node->Place(val.key);
+        int indx = node->Place(val);
         if ((node->children[indx])->size == 2 * t_ - 1) {
             node->SplitChild(indx);
             if (val >= node->keys[indx]) {
                 indx += 1;
             }
         }
-        node->subTreeSize[indx] += 1;
         Insert(val, node->children[indx]);
     }
 
@@ -171,23 +155,17 @@ private:
         if (indx != 0 && (node->children[indx - 1])->size >= t_) {
             BNode* lbroth = node->children[indx - 1];
             int lsize = lbroth->size;
-            int lsubtreesz = lbroth->subTreeSize[lsize];
             son->InsertKey(0, node->keys[indx - 1]);
-            son->InsertChild(0, lbroth->children[lsize], lsubtreesz);
+            son->InsertChild(0, lbroth->children[lsize]);
             node->keys[indx - 1] = lbroth->keys[lsize - 1];
-            node->subTreeSize[indx] += 1 + lsubtreesz;
-            node->subTreeSize[indx - 1] -= (1 + lsubtreesz);
             lbroth->size -= 1;
             return indx;
         }
         if (indx != node->size && (node->children[indx + 1])->size >= t_) {
             BNode* rbroth = node->children[indx + 1];
-            int rsubtreesz = rbroth->subTreeSize[0];
             son->InsertKey(t_ - 1, node->keys[indx]);
-            son->InsertChild(t_, rbroth->children[0], rsubtreesz);
+            son->InsertChild(t_, rbroth->children[0]);
             node->keys[indx] = rbroth->keys[0];
-            node->subTreeSize[indx] += 1 + rsubtreesz;
-            node->subTreeSize[indx + 1] -= (1 + rsubtreesz);
             rbroth->DeleteKey(0);
             rbroth->DeleteChild(0);
             return indx;
@@ -210,7 +188,6 @@ private:
             return max;
         }
         int indx = Procure(size, node);
-        node->subTreeSize[indx] -= 1;
         return EraseMax(node->children[indx]);
     }
 
@@ -220,12 +197,11 @@ private:
             node->DeleteKey(0);
             return min;
         }
-        node->subTreeSize[0] -= 1;
         return EraseMin(node->children[Procure(0, node)]);
     }
 
     bool Erase(Item &val, BNode* node) {
-        int indx = node->Place(val.key);
+        int indx = node->Place(val);
         if (indx != 0 && val == node->keys[indx - 1]) {
             indx -= 1;
             if (!node->isNotLeaf) {
@@ -234,15 +210,12 @@ private:
             }
             if ((node->children[indx])->size >= t_) {
                 node->keys[indx] = EraseMax(node->children[indx]);
-                node->subTreeSize[indx] -= 1;
                 return true;
             }
             if ((node->children[indx + 1])->size >= t_) {
                 node->keys[indx] = EraseMin(node->children[indx + 1]);
-                node->subTreeSize[indx + 1] -= 1;
                 return true;
             }
-            node->subTreeSize[indx] -= 1;
             node->MergeChildren(indx);
             if (node->size == 0) {
                 root_ = node->children[0];
@@ -257,7 +230,6 @@ private:
         indx = Procure(indx, node);
         bool was = Erase(val, node->children[indx]);
         if (was) {
-            node->subTreeSize[indx] -= 1;
         }
         if (node->size == 0) {
             root_ = node->children[0];
@@ -402,10 +374,8 @@ public:
             BNode* node = new BNode(t_, 0, true);
             int subtreesz = 2 * t_ - 1;
             for (int i = 0; i <= 2 * t_ - 1; ++i) { 
-                subtreesz += root_->subTreeSize[i];
             }
             node->children[0] = root_;
-            node->subTreeSize[0] = subtreesz;
             root_ = node;
             root_->SplitChild(0);
         }
@@ -448,10 +418,10 @@ void ToUpperBound(string &s) {
 
 int main() {
 
-    // std::ios::sync_with_stdio(false);
-    // cin.tie(0);
+    std::ios::sync_with_stdio(false);
+    cin.tie(0);
 
-    const int t = 3;
+    const int t = 16;
     BTree tree(t);
 
     Item val;
@@ -514,11 +484,10 @@ int main() {
                 delete newTree;
             }
         }
-        else if (com == "PrintTree") {
-            tree.PubPrintTree();
-        }
+        // else if (com == "PrintTree") {
+        //     tree.PubPrintTree();
+        // }
         else {
-
             val.key = com;
             ToUpperBound(val.key);
             std::pair<bool, Item> el = tree.PubFind(val);
