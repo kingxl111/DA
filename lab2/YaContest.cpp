@@ -28,13 +28,14 @@ struct Item {
     }
 };
 
+template <class T>
 class BTree {
 private:
     int t_;
     struct BNode {
         int t, size;
         bool isNotLeaf;
-        vector<Item> keys;
+        vector<T> keys;
         vector<BNode*> children;
 
         BNode(int t, int size, bool isNotLeaf)
@@ -43,7 +44,7 @@ private:
             children.resize(2 * t);
         }
 
-        int Place(Item &val) {
+        int Place(T &val) {
             for (int i = 0; i < size; ++i) {
                 if (val < keys[i]) {
                     return i;
@@ -52,7 +53,7 @@ private:
             return size;
         }
 
-        void InsertKey(int indx, Item &val) {
+        void InsertKey(int indx, T &val) {
             for (int i = size; indx < i; --i) {
                 keys[i] = keys[i - 1];
             }
@@ -119,7 +120,7 @@ private:
 
     BNode* root_;
 
-    pair<bool, Item> Find(Item &val, BNode* node) {
+    pair<bool, T> Find(T &val, BNode* node) {
         int indx = node->Place(val);
         if (indx != 0 && val.key == node->keys[indx - 1].key) {
             val = node->keys[indx - 1];
@@ -132,7 +133,7 @@ private:
     }
     
 
-    void Insert(Item &val, BNode* node) {
+    void Insert(T &val, BNode* node) {
         if (!node->isNotLeaf) {
             node->InsertKey(node->Place(val), val);
             return;
@@ -180,7 +181,7 @@ private:
         return indx;
     }
 
-    Item EraseMax(BNode* node) {
+    T EraseMax(BNode* node) {
         int size = node->size;
         if (!node->isNotLeaf) {
             Item max = node->keys[size - 1];
@@ -191,7 +192,7 @@ private:
         return EraseMax(node->children[indx]);
     }
 
-    Item EraseMin(BNode* node) {
+    T EraseMin(BNode* node) {
         if (!node->isNotLeaf) {
             Item min = node->keys[0];
             node->DeleteKey(0);
@@ -315,7 +316,7 @@ bool SaveKeys(BNode *node, ofstream &os) {
         newNode->size = newKeysCount;
         int keySize;
         for (int i = 0; i < newKeysCount; ++i) {
-            Item newItem;
+            T newItem;
             char buffer[MAX_KEY_SIZE];
             is.read(reinterpret_cast<char*>((&keySize)), sizeof(keySize));
             if(is.fail()) {
@@ -369,7 +370,7 @@ public:
         PrintTree(0, root_); 
     }
 
-    void PubInsert(Item &val) {
+    void PubInsert(T &val) {
         if (root_->size == 2 * t_ - 1) {
             BNode* node = new BNode(t_, 0, true);
             int subtreesz = 2 * t_ - 1;
@@ -382,11 +383,11 @@ public:
         Insert(val, root_);
     }
 
-    pair<bool, Item> PubFind(Item &val) { 
+    pair<bool, T> PubFind(T &val) { 
         return Find(val, root_); 
     }
 
-    void PubErase(Item &val) { 
+    void PubErase(T &val) { 
         Erase(val, root_); 
     }
 
@@ -422,7 +423,7 @@ int main() {
     cin.tie(0);
 
     const int t = 16;
-    BTree tree(t);
+    BTree<Item> tree(t);
 
     Item val;
     string com;
@@ -471,7 +472,7 @@ int main() {
             }
             else if(com2 == "Load") {
                 ifstream is(pathToFile, std::ios::binary); 
-                BTree *newTree = new BTree(t);
+                BTree<Item> *newTree = new BTree<Item>(t);
                 try {
                     newTree->PubLoad(is);    
                 }
