@@ -1,13 +1,14 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstdint>
 
 using namespace std;
 
 struct TElem {
-    uint16_t wordIdx;
-    uint16_t lineNumber;
-    uint16_t wordNumber; 
+    int wordIdx;
+    int lineNumber;
+    int wordNumber; 
 };
 
 
@@ -66,31 +67,27 @@ TElem LowerBound(vector<TElem> &v, const TElem &x) {
 
 int main() {
 
-    ios::sync_with_stdio(false);
-    cin.tie(0);
+    // ios::sync_with_stdio(false);
+    // cin.tie(0);
 
     vector<string> ptrns;
-
+    
     string ptrn;
-    do {
-        getline(cin, ptrn);
-        ToLowerCase(ptrn);
-        ptrns.push_back(ptrn);
-        
-    } while(ptrn != "") ;
-    ptrns.pop_back();
+    getline(cin, ptrn);
+    ToLowerCase(ptrn);
+    ptrns.push_back(ptrn);
 
     string commonString = ""; // joined text
 
-    uint16_t idx = 1;
     int c;
-    uint16_t lineNum = 1;
+    int idx = 1;
+    int lineNum = 1;
 
     vector<TElem> words;
     while((c = getchar()) != EOF) {
         string curString = "";
-        uint16_t curWordBeginning = idx;
-        uint16_t wordNumber = 1;
+        int curWordBeginning = idx;
+        int wordNumber = 1;
         while((c != '\n') && (c != EOF)) {
             curString += c;
             ++idx;
@@ -124,44 +121,21 @@ int main() {
     //     cout << commonString[i] << " " << i + 1 << endl;
     // }
 
+    int ptrnLen = ptrns[0].size();
+    vector<int> z = zF(ptrns[0] + "$" + commonString);
 
-    if(ptrns.size() == 1) {
+    for (int j = 0; j < z.size(); ++j) {
+        // cout << z[j]  << " " << j + 1 << endl;
+        if(z[j] == ptrnLen) {
+            int indx = j - ptrnLen;
+            TElem x;
+            x.wordIdx = indx;
+            TElem ans = LowerBound(words, x);
+            cout << ans.lineNumber << ", " << ans.wordNumber << endl;
 
-        int ptrnLen = ptrns[0].size();
-        vector<int> z = zF(ptrns[0] + "$" + commonString);
-
-        for (int j = 0; j < z.size(); ++j) {
-            // cout << z[j]  << " " << j + 1 << endl;
-            if(z[j] == ptrnLen) {
-                int indx = j - ptrnLen;
-                TElem x;
-                x.wordIdx = indx;
-                TElem ans = LowerBound(words, x);
-                cout << ans.lineNumber << ", " << ans.wordNumber << endl;
-
-            }
         }
     }
-    else {
-
-        for (size_t i = 0; i < ptrns.size(); i++) {
-            int ptrnLen = ptrns[i].size();
-            vector<int> z = zF(ptrns[i] + "$" + commonString);
-
-            for (int j = 0; j < z.size(); ++j) {
-                // cout << z[j]  << " " << j + 1 << endl;
-                if(z[j] == ptrnLen) {
-                    int indx = j - ptrnLen;
-                    TElem x;
-                    x.wordIdx = indx;
-                    TElem ans = LowerBound(words, x);
-                    cout << ans.lineNumber << ", " << ans.wordNumber  << ", " << i + 1 << endl;
-
-                }
-            }
-        }
     
-    }
 
 
     /*
