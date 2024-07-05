@@ -2,15 +2,15 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <sstream>
 
 using namespace std;
 
 struct TElem {
-    int wordIdx;
     int lineNumber;
     int wordNumber; 
+    int begIdx;
 };
-
 
 vector<int> zF(const string &s) {
     vector<int> z(s.size());
@@ -40,26 +40,22 @@ void ToLowerCase(string &s) {
     }   
 }
 
-bool cmp(TElem el1, TElem el2) {
-    return el1.wordIdx < el2.wordIdx;
-}
-
 TElem LowerBound(vector<TElem> &v, const TElem &x) {
     int l = 0;
     int r = v.size();
     while(r - l != 1) {
         int m = (l + r) / 2;
-        if(v[m].wordIdx < x.wordIdx) {
+        if(v[m].begIdx < x.begIdx) {
             l = m;
         }
         else {
             r = m;
         }
     }
-    if(v[l].wordIdx == x.wordIdx) {
+    if(v[l].begIdx == x.begIdx) {
         return v[l];
     }
-    if(v[r].wordIdx == x.wordIdx) {
+    if(v[r].begIdx == x.begIdx) {
         return v[r];
     }
     return v[(l + r) / 2];
@@ -67,93 +63,52 @@ TElem LowerBound(vector<TElem> &v, const TElem &x) {
 
 int main() {
 
-    // ios::sync_with_stdio(false);
-    // cin.tie(0);
-
     vector<string> ptrns;
     
     string ptrn;
     getline(cin, ptrn);
     ToLowerCase(ptrn);
+    istringstream ss1(ptrn);
+    string tmpStr;
+    ptrn = "";
+    while(ss1 >> tmpStr) {
+        ptrn += tmpStr + " ";
+    }
     ptrns.push_back(ptrn);
 
     string commonString = ""; // joined text
-
-    int c;
-    int idx = 1;
-    int lineNum = 1;
-
     vector<TElem> words;
-    while((c = getchar()) != EOF) {
-        string curString = "";
-        int curWordBeginning = idx;
-        int wordNumber = 1;
-        while((c != '\n') && (c != EOF)) {
-            curString += c;
-            ++idx;
-            if(c == ' ') {
-                words.push_back({curWordBeginning, lineNum, wordNumber});
-                wordNumber++;
-                curWordBeginning = idx;
-            }
-            c = getchar();
-        }
-        curString += ' ';
-        words.push_back({curWordBeginning, lineNum, wordNumber});
+
+    string curString = "";
+    int lineNum = 1;
+    int idx = 1;
+    while(getline(cin, curString)) {
         ToLowerCase(curString);
-        commonString += curString;
-        lineNum++;
+        istringstream ss(curString);
+        string curWord = "";
+        int wordNum = 1;
+        while(ss >> curWord) {
+            commonString += curWord + " ";
+            words.push_back({lineNum, wordNum, idx});
+            ++wordNum;
+            idx += curWord.size() + 1;
+        }
+        ++lineNum;
     }
 
-    // for (size_t i = 0; i < words.size(); i++) {
-    //     cout << words[i].wordIdx << " " << words[i].lineNumber << " " << words[i].wordNumber << endl;
-    // }
-    
+    int ptrnLen = ptrn.size();
+    vector<int> z = zF(ptrn + "$" + commonString);
 
-    // for (size_t i = 0; i < words.size(); i++) {
-    //     for (size_t j = 0; j < words[i].size(); j++) {
-    //         cout << words[i][j] << " ";
-    //     }
-    //     cout << endl;
-    // }
-    
-    // for (size_t i = 0; i < commonString.size(); i++) {
-    //     cout << commonString[i] << " " << i + 1 << endl;
-    // }
-
-    int ptrnLen = ptrns[0].size();
-    vector<int> z = zF(ptrns[0] + "$" + commonString);
-
-    for (int j = 0; j < z.size(); ++j) {
+    for (size_t j = ptrnLen; j < z.size(); ++j) {
         // cout << z[j]  << " " << j + 1 << endl;
         if(z[j] == ptrnLen) {
             int indx = j - ptrnLen;
             TElem x;
-            x.wordIdx = indx;
+            x.begIdx = indx;
             TElem ans = LowerBound(words, x);
             cout << ans.lineNumber << ", " << ans.wordNumber << endl;
-
         }
     }
-    
-
-
-    /*
-    string text, ptrn;
-    getline(cin, text);
-    getline(cin, ptrn);
-    vector<int> z = zF(ptrn + "$" + text);
-
-    for (int i = 0; i < z.size(); i++) {
-        cout << z[i] << " ";
-    } cout << endl;
-
-    for (int i = 0; i < z.size(); ++i) {
-        if(z[i] == ptrn.size()) {
-            cout << i - ptrn.size() - 1 << endl;
-        }
-    }
-    */
     
     return 0;
 }
