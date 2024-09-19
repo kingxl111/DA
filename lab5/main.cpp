@@ -6,11 +6,11 @@ using namespace std;
 
 int main() {
 
-    // string s;
-    // cin >> s;
+    string s;
+    cin >> s;
 
-    // SuffixArray sAr = SuffixArray(s);
-
+    SuffixArray ar = SuffixArray(s);
+    ar.BuildArray();
     
 
 

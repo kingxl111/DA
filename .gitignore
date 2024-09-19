@@ -6,3 +6,6 @@ benchmark
 a.out
 toSend.tar
 .gitignore
+a.exe
+*.in
+*.vscode/settings.json
