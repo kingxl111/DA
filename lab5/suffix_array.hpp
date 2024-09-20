@@ -17,7 +17,8 @@ private:
         int newEqClass;
     };
 
-    int textSize;
+    int originTextSize;
+    int textSize; // Размер текста с учетом sentinel, округленный вверх до степени двойки
     string text;
     vector<Item> array;
     char sentinel = '$';
@@ -30,7 +31,8 @@ private:
 
 public:
 
-    SuffixArray(string &t) {
+    SuffixArray(const string &t) {
+        originTextSize = t.size();
         text = t;
         text += sentinel;
         float lg = log2(static_cast<float>(text.size()));
@@ -138,13 +140,68 @@ public:
                 << idxEqClass[array[k].idx]  << endl;
             }
         }
+    }
 
+    vector<int> Find(const string &s) {
+        vector<int> indices;
+        if(s.size() < 1) {
+            return indices;
+        }
+
+        int left = textSize - originTextSize; // Позиция первого суффикса, который начинается не с sentinel
+        int right = textSize - 1;   
+
+        int k = 0;
+        while(right - left > 1) {
+            ++k;
+            if(k == 5) {
+                break;
+            }
+            cout << left << " " << right << endl;
+            int m = (left + right) / 2;
+            string s1;
+            
+            for (int i = 0; i + array[m].idx < originTextSize; ++i) {
+                s1 += text[array[m].idx + i];
+            }
+            
+            if(s1 > s) {
+                if(text[array[m].idx] != s[0]) {
+                    right = m;
+                }
+                else {
+                    int i = 0, j = 0;
+                    while((i < s.size()) && (j < s1.size())) {
+                        if(s[i] != s1[j]) {
+                            break;
+                        }
+                        ++i;
+                        ++j;
+                    }
+                    if(i == s.size()) {
+                        indices.push_back(array[m].idx); 
+                        
+                    } 
+                    else {
+                        right = m;
+                    }
+                }
+            }
+            else if (s1 < s) {
+                left = m;
+            }
+            else {
+                indices.push_back(array[m].idx); 
+                left = m;
+            }
+        } 
+
+        return indices;
     }
 
     string Get() {
         return text;
     }
-
 
     ~SuffixArray() {}
 

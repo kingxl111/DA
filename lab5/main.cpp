@@ -6,12 +6,26 @@ using namespace std;
 
 int main() {
 
-    string s;
-    cin >> s;
+    string text;
+    cin >> text;
 
-    SuffixArray ar = SuffixArray(s);
+    SuffixArray ar = SuffixArray(text);
     ar.BuildArray();
     
+    string pattern;
+    int i = 1;
+    while(cin >> pattern) {
+        vector<int> pos = ar.Find(pattern);
+        cout << i << ": ";
+        for (size_t j = 0; j < pos.size(); ++j) {
+            if(j == pos.size() - 1) {
+                cout << pos[j];
+            
+            } else {
+                cout << pos[j] << ", ";
+            }
+        } cout << endl;
+    }
 
 
     return 0;
