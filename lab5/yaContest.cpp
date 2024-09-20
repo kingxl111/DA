@@ -1,368 +1,124 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cmath>
 #include <algorithm>
-#include <map>
 
 using namespace std;
 
-
-
-class SuffixArray {
-private:
-
-    struct Item {
-        int idx; // индекс начала подстроки
-        pair<int, int> oldEqClass; // переходы осуществляем по первому элементу
-        int newEqClass;
-    };
-
-    int originTextSize;
-    int textSize; // Размер текста с учетом sentinel, округленный вверх до степени двойки
-    string text;
-    vector<Item> array;
-    char sentinel = '$';
-    map<int, int> idxEqClass;
-
+// Функция для построения суффиксного массива
+vector<int> BuildSuffixArray(const string &s) {
+    int n = s.size();
+    vector<int> suffAr(n), eqClass(n), tmp(n);
     
-    int Modulo(int, int);
-    void CountingSortPair(vector<pair<int, int> > &array);
-    void CountingSortItem(vector<Item> &array);
-
-public:
-
-    SuffixArray(const string &t) {
-        originTextSize = t.size();
-        text = t;
-        text += sentinel;
-        float lg = log2(static_cast<float>(text.size()));
-        lg = ceil(lg);
-        size_t i = text.size();
-        int newSize = pow(2, lg);
-        while(i < newSize) {
-            text += sentinel;
-            ++i;
-        }
-        textSize = newSize;
-
-        vector<pair<int, int> > letterIdx(text.size());
-        for (size_t i = 0; i < letterIdx.size(); ++i) {
-            if(text[i] == sentinel) {
-                letterIdx[i] = {0, i};
-                continue;
+    for (int i = 0; i < n; i++) {
+        suffAr[i] = i;
+        eqClass[i] = s[i];
+    }
+    
+    for (int len = 1; len < n; len *= 2) {
+        auto cmp = [&](int a, int b) {
+            if (eqClass[a] != eqClass[b])  {
+                return eqClass[a] < eqClass[b];
             }
-            letterIdx[i] = {text[i] - static_cast<int>('a') + 1, i};
-        }
-
-        CountingSortPair(letterIdx);
-
-        // for (size_t i = 0; i < letterIdx.size(); ++i) {
-        //     cout << "Letter: " <<  letterIdx[i].first + 'a' << ", idx: " << letterIdx[i].second << endl;
-        // }
+            return (a + len < n ? eqClass[a + len] : -1) < (b + len < n ? eqClass[b + len] : -1);
+        };
         
-        // Сначала заполняем индексы отсортированных литер 
-        for (size_t i = 0; i < textSize; ++i) {
-            Item curItem;
-            curItem.idx = letterIdx[i].second;
-            array.push_back(curItem);
+        sort(suffAr.begin(), suffAr.end(), cmp);
+        
+        tmp[suffAr[0]] = 0;
+        for (int i = 1; i < n; i++) {
+            tmp[suffAr[i]] = tmp[suffAr[i - 1]] + (cmp(suffAr[i - 1], suffAr[i]) ? 1 : 0);
         }
+        eqClass.swap(tmp);
+    }
+    
+    return suffAr;
+}
 
-        // Теперь заполняем классы эквивалентности
-        // Про вторую пару класса эквивалентности пока ничего не знаем
-        array[0].oldEqClass.first = 0;
-        idxEqClass[array[0].idx] = array[0].oldEqClass.first;
-        for (size_t i = 1; i < textSize; ++i) {
-            if(text[array[i].idx] == text[array[i - 1].idx]) {
-                array[i].oldEqClass.first = array[i - 1].oldEqClass.first;
-            } else {
-                array[i].oldEqClass.first = array[i - 1].oldEqClass.first + 1;
-            }
-            idxEqClass[array[i].idx] = array[i].oldEqClass.first;
-        }
-        // for (size_t i = 0; i < textSize; ++i) {
-        //     cout << "idx: " << array[i].idx << ", eq_class: " << array[i].oldEqClass.first << endl;
-        // }
-    } 
-
-    void BuildArray() {
-
-        for(int i = 1; i < textSize; i *= 2) {
-            
-            for(int j = 0; j < textSize; ++j) {
-                int newIdx = Modulo(array[j].idx - i, textSize);
-                array[j].newEqClass = idxEqClass[newIdx]; // Перекладываем класс эквивалентности
-                // cout << "idx: " << j << ", newIdx: " << newIdx << ", newEq: "
-                // << idxEqClass[newIdx] << endl;
-            }
-
-            for(int j = 0; j < textSize; ++j) {
-                int newIdx = Modulo(array[j].idx - i, textSize);
-                array[j].idx = newIdx;
-                array[j].oldEqClass.first = array[j].newEqClass; // По этим классам будем сортировать
-            }
-
-            // Сортируем по классу эквивалентности 
-            CountingSortItem(this->array);
-
-            for(int j = 0; j < textSize; ++j) {
-                array[j].oldEqClass.second = idxEqClass[Modulo(array[j].idx + i, textSize)];
-            }
-
-            // Строим новые классы эквивалентности
-            array[0].newEqClass = 0;
-            for(int j = 1; j < textSize; ++j) {
-                if((array[j].oldEqClass.first == array[j - 1].oldEqClass.first) 
-                 && (array[j].oldEqClass.second == array[j - 1].oldEqClass.second)) {
-                    array[j].newEqClass = array[j - 1].newEqClass;
-                } else {
-                    array[j].newEqClass = array[j - 1].newEqClass + 1;
-                }
-            }
-            
-            /*
-            for (int k = 0; k < textSize; ++k) {
-                cout << "idx: " << array[k].idx << ", old_eq_first: " << array[k].oldEqClass.first 
-                << ", old_eq_sec: " << array[k].oldEqClass.second << ", new_eq: " << 
-                array[k].newEqClass << endl;
-            }
-            */
-
-            if (array[textSize - 1].newEqClass == textSize - 1) {
-                // cout << "end string len: " << i << endl;
-                break;
-            }
-
-            for (int j = 0; j < textSize; ++j) {
-                idxEqClass[array[j].idx] = array[j].newEqClass;
-                array[j].oldEqClass.first = array[j].newEqClass;
-            }
-
-            
-            for (int k = 0; k < textSize; ++k) {
-                cout << "idx: " << array[k].idx << ", idxEqClass " 
-                << idxEqClass[array[k].idx]  << endl;
-            }
-             
+// Функция для вычисления массива LCP
+vector<int> BuildLcp(const string &s, const vector<int> &suffAr) {
+    int n = s.size();
+    vector<int> eqClass(n), lcp(n);
+    
+    for (int i = 0; i < n; i++) {
+        eqClass[suffAr[i]] = i;
+    }
+    
+    int h = 0;
+    for (int i = 0; i < n; i++) {
+        if (eqClass[i] > 0) {
+            int j = suffAr[eqClass[i] - 1];
+            while (i + h < n && j + h < n && s[i + h] == s[j + h]) h++;
+            lcp[eqClass[i]] = h;
+            if (h > 0) h--;
         }
     }
+    
+    return lcp;
+}
 
-    vector<int> Find(const string &s) {
-        vector<int> indices;
-        if(s.size() < 1) {
-            return indices;
-        }
-
-        // Upper bound
-        int left = textSize - originTextSize; // Позиция первого суффикса, который начинается не с sentinel
-        int right = textSize - 1;   
-
-        while(right - left > 1) {
-
-            cout << left << " " << right << endl;
-            int m = (left + right) / 2;
-            string s1;
-            
-            for (int i = 0; i + array[m].idx < originTextSize; ++i) {
-                s1 += text[array[m].idx + i];
-            }
-            
-            int i = 0, j = 0;
-            while(i < s.size() && j < s1.size()) {
-                if(s[i] > s1[j]) {
-                    left = m;
-                    break;
-                }
-                else if (s[i] < s1[j]) {
-                    right = m;
-                    break;
-                } 
-                ++i;
-                ++j;
-            }
-            if(right == m) continue;
-            if(i == s.size()) {
-                left = m;
-            }
-        } 
-        // В left лежит индекс самого правого вхождения всех суффиксов, которые начинаются с паттерна s
-        cout << "left idx: " << left << ", right idx: " << right << endl;
-
-        int R = left;
-
-        // Lower bound
-        left = textSize - originTextSize; 
-        right = textSize - 1;   
-
-        int k = 0;
-        while(right - left > 1) {
-            
-            ++k;
-            if(k == 5) break;
-            cout << left << " " << right << endl;
-            int m = (left + right) / 2;
-            string s1;
-            
-            for (int i = 0; i + array[m].idx < originTextSize; ++i) {
-                s1 += text[array[m].idx + i];
-            }
-            
-            int i = 0, j = 0;
-            while(i < s.size() && j < s1.size()) {
-                if(s[i] > s1[j]) {
-                    left = m;
-                    break;
-                }
-                else if (s[i] < s1[j]) {
-                    right = m;
-                    break;
-                } 
-                ++i;
-                ++j;
-            }
-            if(left == m) continue;
-            if(i == s.size()) {
-                right = m;
-            }
-        }
-        cout << "left idx: " << left << ", right idx: " << right << endl;
-
-        int L = right;
-        // Между L и R включительно лежат все суффиксы, в которые входит наш паттерн
-
-        while(R - L >= 0) {
-            indices.push_back(array[R].idx);
-            --R;
-        }
-
-
-        sort(indices.begin(), indices.end());
-        return indices;
-    }
-
-    string Get() {
-        return text;
-    }
-
-    ~SuffixArray() {}
-
-};
-
-int SuffixArray::Modulo(int x, int y) {
-    if (x % y == 0) {
-        return 0;
-    } else {
-
-        if ((x > 0 && y > 0) || (x < 0 && y < 0)) {
-            return x % y;
-        }
-        if (x > 0 && y < 0) {
-            return x % y - abs(y);
-        }
-
-        if (x < 0 && y > 0) {
-            return x % y + y;
+// Функция для поиска паттерна
+vector<int> FindPattern(const string &text, const string &pattern) {
+    vector<int> suffAr = BuildSuffixArray(text);
+    vector<int> lcp = BuildLcp(text, suffAr);
+    
+    int m = pattern.size();
+    int left = 0, right = text.size() - 1;
+    
+    // Бинарный поиск для нахождения первого вхождения
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (text.substr(suffAr[mid], m) < pattern) {
+            left = mid + 1;
         } else {
-            return 0;
+            right = mid - 1;
         }
     }
+    
+    int start = left;
+
+    // Бинарный поиск для нахождения последнего вхождения
+    right = text.size() - 1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (text.substr(suffAr[mid], m) <= pattern) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    int end = right;
+
+    // Извлечение индексов вхождений
+    vector<int> indices;
+    for (int i = start; i <= end; i++) {
+        indices.push_back(suffAr[i]);
+    }
+
+    return indices;
 }
-
-void SuffixArray::CountingSortPair(vector<pair<int, int> > &ar) {
-
-    vector<pair<int, int> > newAr(ar.size());
-
-    int maxim = 0;
-    for (size_t i = 0; i < ar.size(); ++i) {
-        maxim = max(maxim, ar[i].first);
-    }
-    int count[maxim + 1];
-    for(int k = 0; k <= maxim; ++k)  {
-        count[k] = 0;
-    }
-
-    for(int i = 0; i < ar.size(); ++i)  {
-        int idx = ar[i].first;
-        ++count[idx];
-    }
-
-    int prev = 0;
-    for(int k = 0; k <= maxim; ++k) {
-        count[k] += prev;
-        prev = count[k];
-    }
-
-    for(int i = ar.size() - 1; i >= 0; --i)  {
-        int idxInCount = ar[i].first;
-        int idxInResult = count[idxInCount] - 1;
-        newAr[idxInResult] = ar[i];
-        --count[idxInCount];
-    }
-
-    ar = newAr;
-}
-
-void SuffixArray::CountingSortItem(vector<Item> &ar) {
-
-    vector<Item> newAr(ar.size());
-
-    int maxim = 0;
-    for (size_t i = 0; i < ar.size(); ++i) {
-        maxim = max(maxim, ar[i].oldEqClass.first);
-    }
-    int count[maxim + 1];
-    for(int k = 0; k <= maxim; ++k)  {
-        count[k] = 0;
-    }
-
-    for(int i = 0; i < ar.size(); ++i)  {
-        int idx = ar[i].oldEqClass.first;
-        ++count[idx];
-    }
-
-    int prev = 0;
-    for(int k = 0; k <= maxim; ++k) {
-        count[k] += prev;
-        prev = count[k];
-    }
-
-    for(int i = ar.size() - 1; i >= 0; --i)  {
-        int idxInCount = ar[i].oldEqClass.first;
-        int idxInResult = count[idxInCount] - 1;
-        newAr[idxInResult] = ar[i];
-        --count[idxInCount];
-    }
-
-    ar = newAr;
-}
-
-
 
 int main() {
-
     string text;
     cin >> text;
-
-    SuffixArray ar = SuffixArray(text);
-    ar.BuildArray();
-    
     string pattern;
-    int i = 1;
+    int counter = 1;
     while(cin >> pattern) {
-        vector<int> pos = ar.Find(pattern);
-        cout << i << ": ";
-        // cout << "string: " << pattern;
-        for (size_t j = 0; j < pos.size(); ++j) {
-            if(j == pos.size() - 1) {
-                cout << pos[j] + 1;
-            
-            } else {
-                cout << pos[j] + 1 << ", ";
+        vector<int> indices = FindPattern(text, pattern);
+        sort(indices.begin(), indices.end());
+        cout << counter << ": ";
+        for (int i = 0; i < indices.size(); ++i) {
+            if(i == indices.size() - 1) {
+                cout << indices[i] + 1;
             }
-        } cout << endl;
-        ++i;
+            else {
+                cout << indices[i] + 1 << ", ";
+            }
+        }
+        cout << endl;
+        ++counter;
     }
-
 
     return 0;
 }
