@@ -1,12 +1,13 @@
-#pragma once
-
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm>
 #include <map>
 
 using namespace std;
+
+
 
 class SuffixArray {
 private:
@@ -137,12 +138,12 @@ public:
                 array[j].oldEqClass.first = array[j].newEqClass;
             }
 
-            /*
+            
             for (int k = 0; k < textSize; ++k) {
                 cout << "idx: " << array[k].idx << ", idxEqClass " 
                 << idxEqClass[array[k].idx]  << endl;
             }
-            */
+             
         }
     }
 
@@ -152,16 +153,13 @@ public:
             return indices;
         }
 
+        // Upper bound
         int left = textSize - originTextSize; // Позиция первого суффикса, который начинается не с sentinel
         int right = textSize - 1;   
 
-        int k = 0;
         while(right - left > 1) {
-            ++k;
-            if(k == 5) {
-                break;
-            }
-            // cout << left << " " << right << endl;
+
+            cout << left << " " << right << endl;
             int m = (left + right) / 2;
             string s1;
             
@@ -182,20 +180,63 @@ public:
                 ++i;
                 ++j;
             }
-
+            if(right == m) continue;
             if(i == s.size()) {
-                if(j == s1.size()) {
-                    left = m;
-                }
-                else {
-                    right = m;
-                }
-
-                indices.push_back(array[m].idx);
+                left = m;
             }
-
         } 
+        // В left лежит индекс самого правого вхождения всех суффиксов, которые начинаются с паттерна s
+        cout << "left idx: " << left << ", right idx: " << right << endl;
 
+        int R = left;
+
+        // Lower bound
+        left = textSize - originTextSize; 
+        right = textSize - 1;   
+
+        int k = 0;
+        while(right - left > 1) {
+            
+            ++k;
+            if(k == 5) break;
+            cout << left << " " << right << endl;
+            int m = (left + right) / 2;
+            string s1;
+            
+            for (int i = 0; i + array[m].idx < originTextSize; ++i) {
+                s1 += text[array[m].idx + i];
+            }
+            
+            int i = 0, j = 0;
+            while(i < s.size() && j < s1.size()) {
+                if(s[i] > s1[j]) {
+                    left = m;
+                    break;
+                }
+                else if (s[i] < s1[j]) {
+                    right = m;
+                    break;
+                } 
+                ++i;
+                ++j;
+            }
+            if(left == m) continue;
+            if(i == s.size()) {
+                right = m;
+            }
+        }
+        cout << "left idx: " << left << ", right idx: " << right << endl;
+
+        int L = right;
+        // Между L и R включительно лежат все суффиксы, в которые входит наш паттерн
+
+        while(R - L >= 0) {
+            indices.push_back(array[R].idx);
+            --R;
+        }
+
+
+        sort(indices.begin(), indices.end());
         return indices;
     }
 
@@ -293,4 +334,35 @@ void SuffixArray::CountingSortItem(vector<Item> &ar) {
     }
 
     ar = newAr;
+}
+
+
+
+int main() {
+
+    string text;
+    cin >> text;
+
+    SuffixArray ar = SuffixArray(text);
+    ar.BuildArray();
+    
+    string pattern;
+    int i = 1;
+    while(cin >> pattern) {
+        vector<int> pos = ar.Find(pattern);
+        cout << i << ": ";
+        // cout << "string: " << pattern;
+        for (size_t j = 0; j < pos.size(); ++j) {
+            if(j == pos.size() - 1) {
+                cout << pos[j] + 1;
+            
+            } else {
+                cout << pos[j] + 1 << ", ";
+            }
+        } cout << endl;
+        ++i;
+    }
+
+
+    return 0;
 }

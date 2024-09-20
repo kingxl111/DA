@@ -19,12 +19,13 @@ int main() {
         cout << i << ": ";
         for (size_t j = 0; j < pos.size(); ++j) {
             if(j == pos.size() - 1) {
-                cout << pos[j];
+                cout << pos[j] + 1;
             
             } else {
-                cout << pos[j] << ", ";
+                cout << pos[j] + 1 << ", ";
             }
         } cout << endl;
+        ++i;
     }
 
 
