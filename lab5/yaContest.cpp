@@ -12,6 +12,7 @@ vector<int> BuildSuffixArray(const string &s) {
     for (int i = 0; i < n; i++) {
         suffAr[i] = i;
         eqClass[i] = s[i];
+        cout << "i: " <<  i << ", eqClass: " << eqClass[i] << endl;
     }
     
     for (int len = 1; len < n; len *= 2) {
@@ -23,7 +24,12 @@ vector<int> BuildSuffixArray(const string &s) {
         };
         
         sort(suffAr.begin(), suffAr.end(), cmp);
+        for (size_t i = 0; i < suffAr.size(); ++i) {
+            cout << "ar[i]: " << suffAr[i] << ", eq: " << eqClass[i] << endl;
+        } cout << endl;
         
+
+
         tmp[suffAr[0]] = 0;
         for (int i = 1; i < n; i++) {
             tmp[suffAr[i]] = tmp[suffAr[i - 1]] + (cmp(suffAr[i - 1], suffAr[i]) ? 1 : 0);
