@@ -9,3 +9,4 @@ toSend.tar
 a.exe
 *.in
 *.vscode/settings.json
+*.vscode
