@@ -3,10 +3,43 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <algorithm>
 #include <map>
 
 using namespace std;
+
+void CountingSortPair(vector<pair<int, int> > &ar) {
+
+    vector<pair<int, int> > newAr(ar.size());
+
+    int maxim = 0;
+    for (size_t i = 0; i < ar.size(); ++i) {
+        maxim = max(maxim, ar[i].first);
+    }
+    int count[maxim + 1];
+    for(int k = 0; k <= maxim; ++k)  {
+        count[k] = 0;
+    }
+
+    for(int i = 0; i < ar.size(); ++i)  {
+        int idx = ar[i].first;
+        ++count[idx];
+    }
+
+    int prev = 0;
+    for(int k = 0; k <= maxim; ++k) {
+        count[k] += prev;
+        prev = count[k];
+    }
+
+    for(int i = ar.size() - 1; i >= 0; --i)  {
+        int idxInCount = ar[i].first;
+        int idxInResult = count[idxInCount] - 1;
+        newAr[idxInResult] = ar[i];
+        --count[idxInCount];
+    }
+
+    ar.swap(newAr);
+}
 
 class SuffixArray {
 private:
@@ -26,7 +59,6 @@ private:
 
     
     int Modulo(int, int);
-    void CountingSortPair(vector<pair<int, int> > &array);
     void CountingSortItem(vector<Item> &array);
 
 public:
@@ -157,40 +189,6 @@ int SuffixArray::Modulo(int x, int y) {
     }
 }
 
-void SuffixArray::CountingSortPair(vector<pair<int, int> > &ar) {
-
-    vector<pair<int, int> > newAr(ar.size());
-
-    int maxim = 0;
-    for (size_t i = 0; i < ar.size(); ++i) {
-        maxim = max(maxim, ar[i].first);
-    }
-    int count[maxim + 1];
-    for(int k = 0; k <= maxim; ++k)  {
-        count[k] = 0;
-    }
-
-    for(int i = 0; i < ar.size(); ++i)  {
-        int idx = ar[i].first;
-        ++count[idx];
-    }
-
-    int prev = 0;
-    for(int k = 0; k <= maxim; ++k) {
-        count[k] += prev;
-        prev = count[k];
-    }
-
-    for(int i = ar.size() - 1; i >= 0; --i)  {
-        int idxInCount = ar[i].first;
-        int idxInResult = count[idxInCount] - 1;
-        newAr[idxInResult] = ar[i];
-        --count[idxInCount];
-    }
-
-    ar.swap(newAr);
-}
-
 void SuffixArray::CountingSortItem(vector<Item> &ar) {
 
     vector<Item> newAr(ar.size());
@@ -240,21 +238,97 @@ void BWT(string &input, vector<char> &res) {
 }
 
 void MTF(vector<char> &v, vector<int> &res, vector<char> alf) {
+    vector<char> tmp_alf(alf.size());
     for (size_t i = 0; i < v.size(); i++) {
         int idx;
-        if (v[i] = '$') {
-            idx = 0;
+        for (size_t j = 0; j < alf.size(); j++) {
+            if (v[i] == alf[j]) {
+                idx = j;
+                break;
+            }
         }
-        else {
-            idx = alf[static_cast<int>(v[i] - 'a' + 1)];
+        res[i] = idx;
+        tmp_alf[0] = alf[idx];
+        for (size_t j = 1; j <= idx; j++) {
+            tmp_alf[j] = alf[j - 1];
+        }
+        for (size_t j = idx + 1; j < tmp_alf.size(); j++) {
+            tmp_alf[j] = alf[j];
         }
 
+        alf.swap(tmp_alf);
+    }
+}
+
+void RLE(vector<int> &v, vector<pair<int, int>> &res) {
+    int counter = 1;
+    for (size_t i = 1; i < v.size(); i++) {
+        if (v[i] == v[i - 1]) {
+            counter++;
+        }
+        else {
+            res.push_back({counter, v[i - 1]});
+            counter = 1;
+        }
+    }
+    res.push_back({counter, v[v.size() - 1]});
+}
+
+
+void ReverseRLE(vector<pair<int, int> > &codes, vector<int> &res) {
+    for (size_t i = 0; i < codes.size(); i++) {
+        for (size_t j = 0; j < codes[i].first; j++) {
+            res.push_back(codes[i].second);
+        }
+    }
+}
+
+void ReverseMTF(vector<int> &v, vector<char> &res, vector<char> alf) {
+    vector<char> tmp_alf(alf.size());
+    for (size_t i = 0; i < v.size(); i++) {
+        int idx = v[i];
+        res.push_back(alf[idx]);
+
+        tmp_alf[0] = alf[idx];
+        for (size_t j = 1; j <= idx; j++) {
+            tmp_alf[j] = alf[j - 1];
+        }
+        for (size_t j = idx + 1; j < tmp_alf.size(); j++) {
+            tmp_alf[j] = alf[j];
+        }
+
+        alf.swap(tmp_alf);
     }
     
 }
 
 
-void RLE(vector<char> &v) {}
+void ReverseBWT(vector<char> &v, string &res, const vector<char> &alf) {
+
+    vector<pair<int, int> > vInt(v.size()); // first - letter, second - idx in origin array
+    for (size_t i = 0; i < vInt.size(); i++) {
+        if (v[i] == '$') {
+            vInt[i] = {0, i};
+            continue;
+        }
+        vInt[i] = {static_cast<int>(v[i] - 'a' + 1), i};
+    }
+    CountingSortPair(vInt);
+
+    int beginIdx = -1;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i] == '$') {
+            beginIdx = i;
+        }
+    }
+
+    int idx = beginIdx;
+    while(res.size() < v.size() - 1) { // without terminal $, so -1 
+        res += v[vInt[idx].second];
+        idx = vInt[idx].second;
+    }
+
+}
 
 int main() {
 
@@ -268,7 +342,6 @@ int main() {
         alf[i] = static_cast<char>('a' + i - 1);
     }
     
-
     string cmd;
     cin >> cmd;
     if (cmd == "compress") {
@@ -278,25 +351,37 @@ int main() {
         
         vector<char> bwt(inputText.size());
         BWT(inputText, bwt);
-        // for (size_t i = 0; i < bwt.size(); i++) {
-        //     cout << bwt[i] << endl;
-        // }
 
         vector<int> mtf(bwt.size());
         MTF(bwt, mtf, alf);
-        for (size_t i = 0; i < mtf.size(); i++) {
-            cout << mtf[i] << endl;
-        }
-        
 
-        
+        vector<pair<int, int> > rle;
+        RLE(mtf, rle);
+        for (size_t i = 0; i < rle.size(); i++) {
+            cout << rle[i].first << " " << rle[i].second << endl; 
+        }
 
     } else if (cmd == "decompress") {
-        cout << "decomp";
+
+        vector<pair<int, int> > codes;
+        pair<int, int> pii;
+        while(cin >> pii.first >> pii.second) {
+            codes.push_back(pii);
+        }        
+        
+        vector<int> revRLE;
+        ReverseRLE(codes, revRLE);
+
+        vector<char> revMTF;
+        ReverseMTF(revRLE, revMTF, alf);
+
+        string outputText;
+        ReverseBWT(revMTF, outputText, alf);
+        cout << outputText << endl;
+
     } else {
         cout << -1;
     }
-    cout << endl;
 
     return 0;
 }
