@@ -8,5 +8,6 @@ toSend.tar
 .gitignore
 a.exe
 *.in
+*.out
 *.vscode/settings.json
 *.vscode
