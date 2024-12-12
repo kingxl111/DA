@@ -11,3 +11,4 @@ a.exe
 *.out
 *.vscode/settings.json
 *.vscode
+*.zip
