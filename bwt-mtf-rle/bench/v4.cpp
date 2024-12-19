@@ -253,9 +253,10 @@ vector<uint8_t> ReverseRLE(const vector<uint8_t>& rle) {
     return result;
 }
 
-void writeEncodedData(ofstream& outputFile, const string& encodedData) {
+streamsize writeEncodedData(ofstream& outputFile, const string& encodedData) {
     uint8_t buffer = 0;
     int bitCount = 0;
+    streamsize total = 0;
 
     for (char bit : encodedData) {
         buffer <<= 1;
@@ -266,6 +267,7 @@ void writeEncodedData(ofstream& outputFile, const string& encodedData) {
 
         if (bitCount == 8) {
             outputFile.write(reinterpret_cast<const char*>(&buffer), sizeof(buffer));
+            total += sizeof(buffer);
             buffer = 0;
             bitCount = 0;
         }
@@ -273,7 +275,9 @@ void writeEncodedData(ofstream& outputFile, const string& encodedData) {
     if (bitCount > 0) { 
         buffer <<= (8 - bitCount);
         outputFile.write(reinterpret_cast<const char*>(&buffer), sizeof(buffer));
+        total += sizeof(buffer);
     }
+    return total;
 }
 
 void readEncodedData(ifstream& inputFile, string& encodedData, size_t bitCount) {
@@ -303,6 +307,10 @@ void printUsageInfo() {
 
 void collectFiles(const string& path, vector<string>& files, bool recursive) {
     if (recursive) {
+        if (!fs::is_directory(path)) {
+            cerr << "Error: using -r with regular files" << endl;
+            return;
+        }
         for (const auto& entry : fs::recursive_directory_iterator(path)) {
             if (fs::is_regular_file(entry.path())) {
                 files.push_back(entry.path().string());
@@ -319,17 +327,18 @@ void collectFiles(const string& path, vector<string>& files, bool recursive) {
     }
 }
 
-// TODO: add light compress and light de without Huffman
+// TODO: add light compress and light decompress without Huffman
 void LiteCompress(const string& inputFilename, const string& outputFilename, bool toStdout) {}
 
 void LiteDecompress(const string& inputFilename, const string& outputFilename, bool toStdout) {}
 
-void Compress(const string& inputFilename, const string& outputFilename, bool toStdout) {
+void Compress(const string& inputFilename, const string& outputFilename, bool toStdout, bool list) {
     ifstream inputFile(inputFilename, ios::binary);
     if (!inputFile) {
         cerr << "Error opening input file." << endl;
     }
     vector<uint8_t> inputData((istreambuf_iterator<char>(inputFile)), istreambuf_iterator<char>());
+    size_t originalSize = fs::file_size(inputFilename);
     inputFile.close();
 
     auto [bwtData, primaryIndex] = BWT(inputData);
@@ -347,7 +356,6 @@ void Compress(const string& inputFilename, const string& outputFilename, bool to
 
     string encodedData;
     HuffmanEncode(rleData, encodedData, huffmanTable);
-    // cout << "ENCODED DATA: " << encodedData;
     ofstream outputFile(outputFilename, ios::binary | ios::app);
     if(!toStdout) {
         if (!outputFile) {
@@ -356,10 +364,13 @@ void Compress(const string& inputFilename, const string& outputFilename, bool to
     }
 
     if (toStdout) {
+        streamsize total = 0;
         size_t encodedBitCount = encodedData.size(); 
         cout 
         << reinterpret_cast<const char*>(&primaryIndex) 
         << reinterpret_cast<const char*>(&encodedBitCount);
+        total += sizeof(primaryIndex);
+        total += sizeof(encodedBitCount);
         uint8_t buffer = 0;
         int bitCount = 0;
         for (char bit : encodedData) {
@@ -371,6 +382,7 @@ void Compress(const string& inputFilename, const string& outputFilename, bool to
 
             if (bitCount == 8) {
                 cout << reinterpret_cast<const char*>(&buffer);
+                total += sizeof(buffer);
                 buffer = 0;
                 bitCount = 0;
             }
@@ -378,24 +390,45 @@ void Compress(const string& inputFilename, const string& outputFilename, bool to
         if (bitCount > 0) { 
             buffer <<= (8 - bitCount);
             cout << reinterpret_cast<const char*>(&buffer);
+            total += sizeof(buffer);
+        }
+        for (int freq : frequencies) {
+            cout << reinterpret_cast<const char*>(&freq);
+            total += sizeof(freq);
         }
         deleteHuffmanTree(root);
+        double ratio = (originalSize > 0) ? (1.0 - static_cast<double>(total) / originalSize) * 100 : 0.0;
+        if (list) {
+            cout << "\ncompressed size: " << total << " bytes" << endl;
+            cout << "uncompressed size: " << originalSize << " bytes" << endl;
+            cout << "ratio: " << fixed << setprecision(2) << ratio << "%" << endl;
+            cout << "uncompressed_name: " << inputFilename << endl;
+        }
         return;
     }
 
     outputFile.write(reinterpret_cast<const char*>(&primaryIndex), sizeof(primaryIndex));
-    // printf("PRIMARY INDEX: %d\n", primaryIndex);
+    streamsize compressedSize = sizeof(primaryIndex);
     size_t encodedBitCount = encodedData.size();
-    // printf("ENCODED BIT COUNT: %ld\n", encodedBitCount);
     outputFile.write(reinterpret_cast<const char*>(&encodedBitCount), sizeof(encodedBitCount));
-    writeEncodedData(outputFile, encodedData);
+    compressedSize += sizeof(encodedBitCount);
+    compressedSize += writeEncodedData(outputFile, encodedData);
 
     for (int freq : frequencies) {
         outputFile.write(reinterpret_cast<const char*>(&freq), sizeof(freq));
+        compressedSize += sizeof(freq);
     }
 
     deleteHuffmanTree(root);
     outputFile.close();
+    
+    double ratio = (originalSize > 0) ? (1.0 - static_cast<double>(compressedSize) / originalSize) * 100 : 0.0;
+    if (list) {
+        cout << "compressed size: " << compressedSize << " bytes" << endl;
+        cout << "uncompressed size: " << originalSize << " bytes" << endl;
+        cout << "ratio: " << fixed << setprecision(2) << ratio << "%" << endl;
+        cout << "uncompressed_name: " << inputFilename << endl;
+    }
 }
 
 void Decompress(const string& inputFilename, const string& outputFilename, bool toStdout) {
@@ -405,10 +438,13 @@ void Decompress(const string& inputFilename, const string& outputFilename, bool 
         cerr << "Error opening input file." << endl;
         return;
     }
+
     ofstream outputFile(outputFilename, ios::binary | ios::app);
-    if (!outputFile) {
-        cerr << "Error opening output file." << endl;
-        return;
+    if(!toStdout) {
+        if (!outputFile) {
+            cerr << "Error opening output file." << endl;
+            return;
+        }
     }
 
     while(!inputFile.eof()) {
@@ -450,7 +486,11 @@ void Decompress(const string& inputFilename, const string& outputFilename, bool 
         vector<uint8_t> mtfDecoded = ReverseMTF(rleDecoded);
         vector<uint8_t> originalData = ReverseBWT(mtfDecoded, primaryIndex);
 
-        outputFile.write(reinterpret_cast<char*>(originalData.data()), originalData.size());
+        if (toStdout) {
+            cout << reinterpret_cast<char*>(originalData.data()) << endl;
+        } else {
+            outputFile.write(reinterpret_cast<char*>(originalData.data()), originalData.size());
+        }
         deleteHuffmanTree(root);
     }
 
@@ -458,6 +498,11 @@ void Decompress(const string& inputFilename, const string& outputFilename, bool 
     inputFile.close();
 }
 
+std::string readFromStdin() {
+    std::ostringstream buffer;
+    buffer << std::cin.rdbuf();
+    return buffer.str();
+}
 
 int main(int argc, char* argv[]) {
 
@@ -475,13 +520,17 @@ int main(int argc, char* argv[]) {
     bool minCompress = false;
     bool maxCompress = true;
     bool keep = false;
+    bool fromStdin = false;
 
     string inputFile = "-", outputFile;
     vector<string> inputFiles;
 
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
-        if (arg[0] == '-') {
+        if (arg == "-") {
+            fromStdin = true;
+        }
+        else if (arg[0] == '-') {
             for (char c : arg.substr(1)) {
                 switch (c) {
                     case 'c': 
@@ -517,7 +566,17 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else {
-            if (inputFile == "-") {
+            if (fromStdin) {
+                string buf = readFromStdin();
+                cout << "buf: " << buf << endl;
+                ofstream tmp("tmp", ios::binary);
+                if (!tmp) {
+                    cerr << "Error opening tmp file." << endl;
+                }
+                tmp.write(reinterpret_cast<char*>(buf.data()), buf.size());
+                inputFiles.push_back("tmp");
+            }
+            else if (inputFile == "-") {
                 inputFile = arg;
                 collectFiles(inputFile, inputFiles, recursive);
             } else if (i + 1 < argc) {
@@ -546,6 +605,7 @@ int main(int argc, char* argv[]) {
          << "minCompress: " << minCompress << endl
          << "maxCompress: " << maxCompress << endl
          << "outputFile: " << outputFile << endl
+         << "from stdin: " << fromStdin << endl
          << endl;
     
     for (size_t i = 0; i < inputFiles.size(); i++) {
@@ -555,7 +615,7 @@ int main(int argc, char* argv[]) {
     if (compress) {
         for (size_t i = 0; i < inputFiles.size(); i++) {
             if (maxCompress) {
-                Compress(inputFiles[i], outputFile, toStdout);
+                Compress(inputFiles[i], outputFile, toStdout, list);
             } else {
                 LiteCompress(inputFiles[i], outputFile, toStdout);
             }
@@ -577,14 +637,3 @@ int main(int argc, char* argv[]) {
     }
 
 }
-
-    /*
-    if (outputFile.empty()) {
-        outputFile = compress ? inputFile + ".gz" : inputFile.substr(0, inputFile.rfind('.'));
-    }
-
-    if (compress) {
-        Compress(inputFile, outputFile, toStdout);
-    }
-    */
-
